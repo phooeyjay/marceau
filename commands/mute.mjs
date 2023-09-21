@@ -6,11 +6,11 @@ export const data = new SlashCommandBuilder()
 .addUserOption(o => o.setName('user').setDescription('The user.').setRequired(true))
 .addNumberOption(o => o.setName('hours').setDescription('The mute period.').setRequired(true));
 
-export const execute = async (/** @type {ChatInputCommandInteraction} */ interaction) => {
-    const gm = interaction.guild.members.resolve(interaction.options.getUser('user'))
-    , hours = interaction.options.getNumber('hours')
+export const execute = async (/** @type {ChatInputCommandInteraction} */ i) => {
+    const gm = i.guild.members.resolve(i.options.getUser('user'))
+    , hours = i.options.getNumber('hours')
     , validPeriod = hours && hours > 0;
 
     await gm.timeout(validPeriod ? hours * 3_600_000 : null);
-    return await interaction.reply({ content: `${userMention(gm.id)} has been ` + (validPeriod ? `muted for ${bold(hours + ' hours')}.` : 'unmuted.'), ephemeral: !validPeriod });
+    return await i.reply({ content: `${userMention(gm.id)} has been ` + (validPeriod ? `muted for ${bold(hours + ' hours')}.` : 'unmuted.'), ephemeral: !validPeriod });
 }
