@@ -30,7 +30,7 @@ export const execute = async (/** @type {ChatInputCommandInteraction} */ i) => {
     //#region Identify current and upcoming tier of the curse.
     const tier = victim.roles.cache.find(r => Object.values(DM_ROLES).includes(r.id));
     if (tier?.id === DM_ROLES.GREYED) return await i.reply({ content: `The ${roleMention(DM_ROLES.GREYED)} status is the final stage of the curse.`, ephemeral: true });
-    const next = roles.find(next_tier(tier?.id)) || (_ => { throw Error(`Next tier role retrieval returned undefined.`) })();
+    const next = roles.find(r => r.id === next_tier(tier?.id)) || (_ => { throw Error(`Next tier role retrieval returned undefined.`) })();
     //#endregion
 
     //#region Create and reply with embed, and auto-react with required reactions.
