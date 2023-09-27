@@ -43,6 +43,7 @@ client.on('interactionCreate', async interaction => {
         await interaction_log(interaction, err);
     }
 });
-
 process.on('SIGINT', _ => { console_log('FORCE EXIT'); end_session(); });
-client.login(process.env.TOKEN);
+
+await client.login(process.env.TOKEN);
+client.user.setPresence({ status: process.env.STATUS || 'online' });
