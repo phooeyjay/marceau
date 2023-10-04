@@ -2,12 +2,13 @@
   "name": "marceau",
   "version": "1.0.0",
   "description": "Codebase for the discord bot Marceau, developed using DiscordJS",
-  "main": "bot.mjs",
+  "main": "bot.js",
   "author": "phooeyjay",
+  "type": "module",
   "license": "ISC",
   "dependencies": {
+    "cron": "^2.4.4",
     "discord.js": "^14.13.0",
-    "dotenv": "^16.3.1",
-    "node-cron": "^3.0.2"
+    "dotenv": "^16.3.1"
   }
 }
