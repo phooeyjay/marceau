@@ -2,13 +2,21 @@
   "name": "marceau",
   "version": "1.0.0",
   "description": "Codebase for the discord bot Marceau, developed using DiscordJS",
-  "main": "bot.js",
   "author": "phooeyjay",
   "type": "module",
   "license": "ISC",
+  "main": "index.ts",
+  "scripts": {
+    "start": "npx tsx watch --no-cache --clear-screen=false index.ts"
+  },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.425.0",
+    "@aws-sdk/lib-dynamodb": "^3.425.0",
     "cron": "^2.4.4",
     "discord.js": "^14.13.0",
     "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "tsx": "^3.13.0"
   }
 }
