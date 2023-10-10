@@ -1,7 +1,7 @@
 {
   "name": "marceau",
   "version": "1.0.0",
-  "description": "Codebase for the discord bot Marceau, developed using DiscordJS",
+  "description": "Codebase for the discord bot Marceau, developed using DiscordJS and TypeScript.",
   "author": "phooeyjay",
   "type": "module",
   "license": "ISC",
