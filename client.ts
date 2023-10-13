@@ -29,12 +29,11 @@ export class ExtendedClient extends Client {
         client.on('interactionCreate', async i => {
             if (i.isChatInputCommand()) {
                 try {
-                    const command = client.commands.get(i.commandName) || throwexc(`Unknown command [${i.commandName}]`);
-                    await command.execute(i);
-                    Logger.interact(i);
+                    Logger.interact(i.user, i.commandName);
+                    await (client.commands.get(i.commandName) || throwexc(`Unknown command [${i.commandName}]`)).execute(i);
                 } catch (err) {
-                    (i.replied || i.deferred) && await Promise.all([ i.deleteReply(), i.channel?.send(ERROR_STRING) ]) || await i.reply(ERROR_STRING);
-                    Logger.interact(i, err);
+                    (i.replied || i.deferred) && await i.deleteReply().then(async () => await i.channel?.send(ERROR_STRING)) || await i.reply({ content: ERROR_STRING, fetchReply: true });
+                    Logger.interact(i.user, i.commandName, err);
                 }
             }
         });

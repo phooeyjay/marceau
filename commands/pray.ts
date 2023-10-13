@@ -17,6 +17,7 @@ export default {
         .setDescription('Consultation in progress. Please be patient.')
         , fetch = await i.reply({ content: `${userMention(i.user.id)}`, embeds: [embed], fetchReply: true })
         , kt = i.guild!.roles.cache.get(DM_ROLES.KISMT) || (() => { Logger.basic(Error('Kismet Marked role undefined.')); return null; })();
+
         setTimeout(async () => {
             try {
                 //#region Initializing the probability distribution for the rolling dice.

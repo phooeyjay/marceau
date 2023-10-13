@@ -1,8 +1,7 @@
-import { ChatInputCommandInteraction, Collection, EmbedBuilder, GuildMember, SlashCommandBuilder, bold, roleMention, time, userMention } from 'discord.js';
+import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder, roleMention, userMention, time, bold, GuildMember } from 'discord.js';
 import { DM_ROLES, TFRAME_SECONDS } from '../constants';
-import { throwexc, random } from '../utils';
+import { throwexc, random, Balloteer } from '../utils';
 
-declare global { var noStack: boolean }
 
 export default {
     data: new SlashCommandBuilder()
@@ -14,9 +13,7 @@ export default {
     execute: async (i: ChatInputCommandInteraction) => {
         if (global.noStack) return await i.reply({ content: 'Mark in progress. Please try again later.', ephemeral: true });
 
-        const roles = i.guild!.roles.cache
-        , grouper = roles.get(DM_ROLES.MARKD) || throwexc('Cursemarked role undefined.')
-        , victim = i.guild!.members.resolve(i.options.getUser('user')!) || throwexc('GuildMember undefined.');
+        const roles = i.guild!.roles.cache, victim = i.guild!.members.resolve(i.options.getUser('user')!) || throwexc('GuildMember undefined.');
         if (victim.user.bot) return await i.reply('You cannot curse a bot user.');
         
         //#region Get the current tier and next tier, as well as the grouping role if applicable.
@@ -31,55 +28,51 @@ export default {
         if (now?.id === DM_ROLES.GREYD) return await i.reply({ content: `${userMention(victim.id)} is at the final stage of the cursemark.`, ephemeral: true });
         //#endregion
 
-        //#region Create and reply with embed, and auto-react with required reactions.
+        //#region Embed creation
         const embed = new EmbedBuilder()
-        .setAuthor({ name: 'GUILTY 🆗, OR INNOCENT 🆖?' })
+        .setAuthor({ name: 'GUILTY 💀, OR INNOCENT ✔️' })
         .setThumbnail(victim.displayAvatarURL())
         .setDescription(`${userMention(victim.id)} is about to be ${roleMention(next.id)}.`)
         .setColor(next.color)
-        .addFields({ name: 'Reason', value: i.options.getString('reason') || 'None provided.' })
-        , fetch = await i.reply({
-            content: `${roleMention(DM_ROLES.CROWD)} Vote ends ${time(Math.floor(Date.now() / 1_000) + TFRAME_SECONDS, 't')}`,
-            allowedMentions: { parse: ['roles'], repliedUser: false },
-            embeds: [embed],
-            fetchReply: true
-        });
-        await Promise.all([ fetch.react('🆗'), fetch.react('🆖') ]);
+        .addFields({ name: 'Reason', value: i.options.getString('reason') || '---' });
         //#endregion
-    
-        //#region Try-catch specifically to remove the global-linked variable.
-        try {
+
+        //#region Reply ephemeral to separate the poll from the caller, then delete the reply.
+        await i.reply({ content: 'Poll is being created.', ephemeral: true });
+        const collector = await Balloteer.begin(i.channel || throwexc('Interaction [channel] undefined.')
+            , TFRAME_SECONDS * 1_000
+            , { content: `${roleMention(DM_ROLES.CROWD)} Vote ends ${time(Math.floor(Date.now() / 1_000) + TFRAME_SECONDS, 't')}`, embeds: [embed] }
+            , { emote: '💀', action: (_, u) => collector.message.reactions.resolve('✔️')?.users.remove(u) }
+            , { emote: '✔️', action: (_, u) => collector.message.reactions.resolve('💀')?.users.remove(u) });
+        await i.deleteReply();
+        //#endregion
+
+        try { // Try-catch specifically to change the global-linked variable.
             global.noStack = true;
-
-            const collector = fetch.createReactionCollector({ filter: (react, user) => !user.bot && ['🆗', '🆖'].includes(react.emoji.name!), time: TFRAME_SECONDS * 1_000 });
-            collector.on('collect', (react, user) => { fetch.reactions.resolve(react.emoji.name === '🆗' ? '🆖' : '🆗')!.users.remove(user); });
-            collector.on('end', async (reacts, reason) => {
-                if (reason === 'messageDelete') { global.noStack = false; return await fetch.channel.send(`The imminent curse on ${userMention(victim.id)} has been wiped.`); }
-
-                const model = (() => {
-                    const count_reacts = (set: Collection<string, any>, react: string) => Math.max(0, (set.find(r => r.emoji.name === react)?.count || 0) - 1) // remove bot reaction used for convenience of emoji access.
-                    , ysize = count_reacts(reacts, '🆗')
-                    , nsize = count_reacts(reacts, '🆖');
-                    return { unvoted: ysize === 0 && nsize === 0, sway: ysize - nsize, outcome: [`${bold(ysize.toString())} 🆗 and ${bold(nsize.toString())} 🆖.\n`] }; 
+            collector.on('end', async (c, r) => {
+                if (r === 'messageDelete') { global.noStack = false; return await collector.message.channel.send(`The imminent curse on ${userMention(victim.id)} has been wiped.`); }
+                const result = (() => {
+                    const ysize = c.find(e => e.emoji.name === '💀')?.count || 0, nsize = c.find(e => e.emoji.name === '✔️')?.count || 0;
+                    return { unvoted: ysize <= 0 && nsize <= 0, sway: ysize - nsize, outcome: [`${bold(ysize.toString())} 🆗 and ${bold(nsize.toString())} 🆖.\n`] };
                 })();
-                if (model.unvoted || model.sway > 0) {
-                    const migrateMember = async (member: GuildMember) => {
-                        for (const away of [now, next.id === DM_ROLES.GREYD && grouper || undefined].filter(r => r)) await member.roles.remove(away!);
-                        for (const into of [next, !now && grouper || undefined].filter(r => r)) await member.roles.add(into!);
+                if (result.unvoted || result.sway > 0) {
+                    const grouper = roles.get(DM_ROLES.MARKD) || throwexc('Cursemarked group role undefined.')
+                    , changetier = async (member: GuildMember) => {
+                        await member.roles.remove(Object.keys(DM_ROLES).filter(r => ![DM_ROLES.CROWD, DM_ROLES.MARKD].includes(r)));
+                        for (const into of [next, grouper]) await member.roles.add(into);
                     };
 
-                    model.outcome.push(`By ${model.unvoted ? 'default' : 'majority vote'}, ${userMention(victim.id)} is now ${roleMention(next.id)}.`);
+                    result.outcome.push(`By ${result.unvoted && 'default' || 'majority vote'}, ${userMention(victim.id)} is now ${roleMention(next.id)}.`);
                     if ([ DM_ROLES.KISMT, DM_ROLES.SCARL ].includes(next.id) && random() >= 0.5) {
                         /** Filter users that are (1) not the victim themselves, and (2) not a Kismet Marked if the victim is Scarlet Marked. */
-                        const single = grouper.members.filter(gm => gm.id !== victim.id && (now?.id === DM_ROLES.SCARL && !gm.roles.cache.has(DM_ROLES.KISMT) || true)).random(1)[0];
-                        model.outcome.push(`As collateral, ${userMention(single.id)} has also been converted.`);
-                        for (const gm of [victim, single]) migrateMember(gm);
-                    } else migrateMember(victim);
-                } else model.outcome.push(`${userMention(victim.id)} survives this mark for now.`);
-                await Promise.all([ fetch.edit({ embeds: [embed.setDescription(model.outcome.join(' '))] }), fetch.reactions.removeAll() ]);
-                global.noStack = false;;
+                        const single = grouper.members.filter(gm => gm.id !== victim.id && [DM_ROLES.GREYD, now?.id === DM_ROLES.SCARL && DM_ROLES.KISMT || DM_ROLES.GREYD].some(rid => !gm.roles.cache.has(rid))).random(1)[0];
+                        result.outcome.push(`As collateral, ${userMention(single.id)} has also been converted.`);
+                        for (const gm of [victim, single]) changetier(gm);
+                    } else changetier(victim);
+                } else result.outcome.push(`${userMention(victim.id)} survives this mark for now.`);
+                await Promise.all([ collector.message.edit({ embeds: [embed.setDescription(result.outcome.join(' '))] }), collector.message.reactions.removeAll() ]);
+                global.noStack = false;
             });
         } catch (err) { global.noStack = false; throw err; }
-        //#endregion
     }
 }
