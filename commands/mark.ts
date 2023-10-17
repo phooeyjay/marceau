@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder, roleMention, userMention, time, bold, GuildMember } from 'discord.js';
 import { DM_ROLES, TFRAME_SECONDS } from '../constants';
-import { throwexc, random, Balloteer } from '../utils';
+import { throwexc, random, pollnew } from '../utils';
 
 
 export default {
@@ -30,7 +30,7 @@ export default {
 
         //#region Embed creation
         const embed = new EmbedBuilder()
-        .setAuthor({ name: 'GUILTY 💀, OR INNOCENT ✔️' })
+        .setAuthor({ name: 'GUILTY 💀, OR INNOCENT 😇' })
         .setThumbnail(victim.displayAvatarURL())
         .setDescription(`${userMention(victim.id)} is about to be ${roleMention(next.id)}.`)
         .setColor(next.color)
@@ -38,19 +38,21 @@ export default {
         //#endregion
 
         //#region Reply ephemeral to separate the poll from the caller, then delete the reply.
-        await i.reply({ content: 'Poll is being created.', ephemeral: true });
-        const collector = await Balloteer.begin(i.channel || throwexc('Interaction [channel] undefined.')
+        const collector = await pollnew(i
             , TFRAME_SECONDS * 1_000
             , { content: `${roleMention(DM_ROLES.CROWD)} Vote ends ${time(Math.floor(Date.now() / 1_000) + TFRAME_SECONDS, 't')}`, embeds: [embed] }
-            , { emote: '💀', action: (_, u) => collector.message.reactions.resolve('✔️')?.users.remove(u) }
-            , { emote: '✔️', action: (_, u) => collector.message.reactions.resolve('💀')?.users.remove(u) });
-        await i.deleteReply();
+            , {
+                '💀': async (_, u) => await collector.message.reactions.resolve('😇')?.users.remove(u),
+                '😇': async (_, u) => await collector.message.reactions.resolve('💀')?.users.remove(u)
+            });
         //#endregion
 
         try { // Try-catch specifically to change the global-linked variable.
             global.noStack = true;
             collector.on('end', async (c, r) => {
+                global.noStack = false;
                 if (r === 'messageDelete') { global.noStack = false; return await collector.message.channel.send(`The imminent curse on ${userMention(victim.id)} has been wiped.`); }
+
                 const result = (() => {
                     const ysize = c.find(e => e.emoji.name === '💀')?.count || 0, nsize = c.find(e => e.emoji.name === '✔️')?.count || 0;
                     return { unvoted: ysize <= 0 && nsize <= 0, sway: ysize - nsize, outcome: [`${bold(ysize.toString())} 🆗 and ${bold(nsize.toString())} 🆖.\n`] };
@@ -58,7 +60,8 @@ export default {
                 if (result.unvoted || result.sway > 0) {
                     const grouper = roles.get(DM_ROLES.MARKD) || throwexc('Cursemarked group role undefined.')
                     , changetier = async (member: GuildMember) => {
-                        await member.roles.remove(Object.keys(DM_ROLES).filter(r => ![DM_ROLES.CROWD, DM_ROLES.MARKD].includes(r)));
+                        await member.roles.remove(Object.keys(DM_ROLES).filter(r => ![DM_ROLES.CROWD].includes(r)));
+                        for (const tier of [DM_ROLES.DEATH, DM_ROLES.CANCR, DM_ROLES.SCARL, DM_ROLES.KISMT]) await member.roles.remove(tier);
                         for (const into of [next, grouper]) await member.roles.add(into);
                     };
 
@@ -70,8 +73,7 @@ export default {
                         for (const gm of [victim, single]) changetier(gm);
                     } else changetier(victim);
                 } else result.outcome.push(`${userMention(victim.id)} survives this mark for now.`);
-                await Promise.all([ collector.message.edit({ embeds: [embed.setDescription(result.outcome.join(' '))] }), collector.message.reactions.removeAll() ]);
-                global.noStack = false;
+                await Promise.all([ collector.message.reactions.removeAll(), collector.message.edit({ content: roleMention(DM_ROLES.CROWD), embeds: [embed.setDescription(result.outcome.join(' '))] }) ]);
             });
         } catch (err) { global.noStack = false; throw err; }
     }

@@ -1,12 +1,11 @@
 import { Collection
-    , EmojiResolvable
-    , MessageCreateOptions
+    , RepliableInteraction
+    , EmbedBuilder
     , MessageReaction
-    , TextBasedChannel
+    , MessageCreateOptions
     , User
-    , WebhookClient
     , codeBlock
-    , inlineCode
+    , WebhookClient
 } from 'discord.js';
 import { webcrypto as wc } from 'node:crypto';
 import { CronJob, CronCommand } from 'cron';
@@ -29,28 +28,29 @@ export const random = ((sz?: number) => {
     return (sz && sz > 1) && arr || arr[0];
 }) as (() => number) & ((sz: number) => number & number[]);
 
+/** Create a basic poll independent of the scenario it is called in. */
+export const pollnew = async (target: RepliableInteraction, deadline: number | undefined, contents: MessageCreateOptions, options: Record<string, (r: MessageReaction, u: User) => void>) => {
+    await target.reply({ content: 'Let\'s set things up.', ephemeral: true });
+
+    const msg = await target.channel!.send(contents), choices = Object.keys(options);
+    choices.forEach(async choice => await msg.react(choice));
+
+    const collector = msg.createReactionCollector({ 
+        filter: (r, u) => !u.bot && choices.includes(r.emoji.name || ''), 
+        time: deadline 
+    }).on('collect', (r, u) => r.emoji.name && options[r.emoji.name](r, u));
+
+    await target.deleteReply(); 
+    return collector;
+};
+
 export const throwexc = (s: string) => { throw Error(s) };
-//#endregion
-
-//#region BALLOTEER FUNCTIONS
-export const Balloteer = {
-    /** Create a basic poll independent of the scenario it is called in. */
-    begin: async (target: TextBasedChannel, deadline: number | undefined, contents: MessageCreateOptions, ...options: { emote: EmojiResolvable, action: (r: MessageReaction, u: User) => void }[]) => {
-        const m = await target.send(contents), choices = options.map(o => o.emote);
-
-        choices.forEach(async choice => await m.react(choice));
-        return m.createReactionCollector({ 
-            filter: (r, u) => !u.bot && choices.includes(r.emoji.name || 'undefined'), 
-            time: deadline 
-        }).on('collect', (r, u) => r.emoji.name && options.find(o => o.emote === r.emoji.name)?.action(r, u));
-    }
-}
 //#endregion
 
 //#region LOGGER FUNCTIONS
 const logger = new WebhookClient({ url: 'https://discord.com/api/webhooks/1103945700141699142/s_u94Gm8OJej36OO_NGbsMpZF0uKv_TchsDNdRnSp2imxHaaQk_cnTvl2hRRHBcUeBsV' });
 export const Logger = {
-    console: (...parts: any[]) => console.log(timestamp(), ...(parts.map(stringify))), // tabspace simulation
+    console: (...parts: any[]) => console.log(timestamp(), '\u00A0\u00A0', ...(parts.map(stringify))), // tabspace simulation
 
     basic: (a: any) => {
         (async () => {
@@ -64,8 +64,7 @@ export const Logger = {
         (async () => {
             const hasError = error !== undefined;
             try {
-                await logger.send(codeBlock(`${timestamp()} \u00A0\u00A0 ${hasError ? '[ERROR]' : ''} ${by.username} called ${what || 'UNRESOLVED_IDENT'}` 
-                + hasError ? `\n--------------------\n${error = stringify(error)}` : ''));
+                await logger.send({ content: codeBlock(`${timestamp()} \u00A0\u00A0 ${hasError ? '[ERROR]' : ''} [${by.username}] triggered [${what || 'UNRESOLVED_IDENT'}]${hasError ? `\n--------------------\n${error = stringify(error)}` : ''}`) });
             } catch (e) { Logger.console('[Logger.interaction] error:', e, hasError ? `\n--------------------\n${error}` : ''); }
         })();
     }
