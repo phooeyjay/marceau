@@ -18,10 +18,10 @@ import { TZ_GMT8 } from './constants';
  * - An `Object` or `Array` will rely on the JSON.stringify method. 
  * - Otherwise, the value will be forcibly converted into a string by concatenating an empty string. 
  */
-export const text = (a: any) => a instanceof Error && (a.stack || '') || typeof a !== 'object' && a + '' || JSON.stringify(a, a instanceof Array && undefined || Object.getOwnPropertyNames(a));
+export const stringify = (a: any) => a instanceof Error ? a.stack : typeof a !== 'object' ? a + '' : JSON.stringify(a);
 
-/** Current time as a localized string. */
-export const nowstring = () => new Date().toLocaleString('en-GB', { timeZone: TZ_GMT8, timeZoneName: 'short', year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: 'numeric' });
+/** Current datetime as a string, which follows the format `dd/mm/yyyy, hh:mm:ss`  */
+export const timestamp = () => new Date().toLocaleString('en-GB', { timeZone: TZ_GMT8, timeZoneName: 'shortOffset' });
 
 /** Uint8Array randomized between 0 ~ 255. Division with 256 to ensure number between 0 (inclusive) and 1 (exclusive). */
 export const random = ((sz?: number) => {
@@ -50,12 +50,12 @@ export const Balloteer = {
 //#region LOGGER FUNCTIONS
 const logger = new WebhookClient({ url: 'https://discord.com/api/webhooks/1103945700141699142/s_u94Gm8OJej36OO_NGbsMpZF0uKv_TchsDNdRnSp2imxHaaQk_cnTvl2hRRHBcUeBsV' });
 export const Logger = {
-    console: (...parts: any[]) => console.log(nowstring(), '\u00A0\u00A0', ...(parts.map(text))), // tabspace simulation
+    console: (...parts: any[]) => console.log(timestamp(), ...(parts.map(stringify))), // tabspace simulation
 
     basic: (a: any) => {
         (async () => {
             try {
-                await logger.send({ content: `${inlineCode(nowstring())} 📝 ${a = text(a)}` });
+                await logger.send({ content: codeBlock(`${timestamp()} \u00A0\u00A0 ${a = stringify(a)}`) });
             } catch (e) { Logger.console('[Logger.basic] error:', e, '\n--------------------\n', a); }
         })();
     },
@@ -64,10 +64,9 @@ export const Logger = {
         (async () => {
             const hasError = error !== undefined;
             try {
-                const header = `${inlineCode(nowstring())} ${hasError&& '🆘' || '🆗'} ${by.username} triggered ${inlineCode(what || 'UNRESOLVED_IDENT')}`
-                , errbox = hasError && text(error) || undefined;
-                await logger.send({ content: header + (errbox && `\n${codeBlock(errbox)}` || ''), allowedMentions: { users: [] } });
-            } catch (e) { Logger.console('[Logger.interaction] error:', e, '\n--------------------\n', hasError && error || '[Error] is empty.'); }
+                await logger.send(codeBlock(`${timestamp()} \u00A0\u00A0 ${hasError ? '[ERROR]' : ''} ${by.username} called ${what || 'UNRESOLVED_IDENT'}` 
+                + hasError ? `\n--------------------\n${error = stringify(error)}` : ''));
+            } catch (e) { Logger.console('[Logger.interaction] error:', e, hasError ? `\n--------------------\n${error}` : ''); }
         })();
     }
 }
