@@ -2,9 +2,9 @@ import { ExtendedClient } from './client';
 import dotenv from 'dotenv';
 
 declare global { 
-    var noStack: boolean;
-    var dClient: ExtendedClient;
+    var blMarkOngoing: boolean;
+    var oClient: ExtendedClient;
 }
 
 dotenv.config();
-(async () => await (global.dClient = ExtendedClient.initialize()).login(process.env.TOKEN))();
+(async () => await (global.oClient = ExtendedClient.initialize()).login(process.env.TOKEN))();

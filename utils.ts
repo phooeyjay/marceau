@@ -1,11 +1,13 @@
 import { Collection
     , RepliableInteraction
-    , EmbedBuilder
+    , ChatInputCommandInteraction
     , MessageReaction
     , MessageCreateOptions
     , User
     , codeBlock
     , WebhookClient
+    , Message
+    , inlineCode,
 } from 'discord.js';
 import { webcrypto as wc } from 'node:crypto';
 import { CronJob, CronCommand } from 'cron';
@@ -55,16 +57,17 @@ export const Logger = {
     basic: (a: any) => {
         (async () => {
             try {
-                await logger.send({ content: codeBlock(`${timestamp()} \u00A0\u00A0 ${a = stringify(a)}`) });
+                await logger.send({ content: `${inlineCode(timestamp())} \u00A0\u00A0 ${a = stringify(a)}` });
             } catch (e) { Logger.console('[Logger.basic] error:', e, '\n--------------------\n', a); }
         })();
     },
 
-    interact: (by: User, what: string | undefined, error?: any) => {
+    interact: (i: ChatInputCommandInteraction, rsp?: Message<boolean>, error?: any) => {
         (async () => {
             const hasError = error !== undefined;
             try {
-                await logger.send({ content: codeBlock(`${timestamp()} \u00A0\u00A0 ${hasError ? '[ERROR]' : ''} [${by.username}] triggered [${what || 'UNRESOLVED_IDENT'}]${hasError ? `\n--------------------\n${error = stringify(error)}` : ''}`) });
+                error = error && stringify(error);
+                await logger.send({ content: `${inlineCode(timestamp())} \u00A0\u00A0 ${hasError ? '[ERROR]' : ''} ${inlineCode(i.user.username)} triggered ${inlineCode(i.commandName)} ${rsp?.url || inlineCode('NO_URL')}` + (hasError ? codeBlock(error) : '') });
             } catch (e) { Logger.console('[Logger.interaction] error:', e, hasError ? `\n--------------------\n${error}` : ''); }
         })();
     }

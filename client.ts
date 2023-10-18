@@ -17,7 +17,7 @@ export class ExtendedClient extends Client {
         client.once('ready', async c => {
             try {
                 for (const f of (await import('node:fs')).readdirSync('./commands').filter(f => f.endsWith('.ts'))) {
-                    const cmd = (await import(`./commands/${f}`)).default;
+                    const cmd = (await import(`./commands/${f}`));
                     ('data' in cmd && 'execute' in cmd) && client.commands.set(cmd.data.name, cmd) || throwexc(`Missing property in [${f}]`);
                 }
                 await (new REST().setToken(process.env.TOKEN!)).put(Routes.applicationCommands(process.env.APPID || throwexc('APPID undefined.')), { body: client.commands.map(c => c.data.toJSON()) });
@@ -29,11 +29,11 @@ export class ExtendedClient extends Client {
         client.on('interactionCreate', async i => {
             if (i.isChatInputCommand()) {
                 try {
-                    Logger.interact(i.user, i.commandName);
-                    await (client.commands.get(i.commandName) || throwexc(`Unknown command [${i.commandName}]`)).execute(i);
+                    Logger.interact(i, await (client.commands.get(i.commandName) || throwexc(`Unknown command [${i.commandName}]`)).execute(i));
                 } catch (err) {
-                    (i.replied || i.deferred) && await i.deleteReply().then(async () => await i.channel?.send(ERROR_STRING)) || await i.reply({ content: ERROR_STRING, fetchReply: true });
-                    Logger.interact(i.user, i.commandName, err);
+                    Logger.interact(i
+                    , (i.replied || i.deferred) && await i.deleteReply().then(async () => await i.channel?.send(ERROR_STRING)) || await i.reply({ content: ERROR_STRING, fetchReply: true })
+                    , err);
                 }
             }
         });
