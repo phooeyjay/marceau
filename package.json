@@ -7,7 +7,7 @@
   "license": "ISC",
   "main": "index.ts",
   "scripts": {
-    "start": "npx tsx watch --no-cache --clear-screen=false index.ts"
+    "start": "npx tsx index.ts"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.425.0",
