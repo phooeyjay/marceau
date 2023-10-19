@@ -14,20 +14,20 @@ export const data = new SlashCommandBuilder()
 .addStringOption(o => o.setName('reason').setDescription('A reason to curse this user.'));
 
 export const execute = async (i: ChatInputCommandInteraction) => {
-    if (global.blMarkOngoing) return await i.reply({ content: 'Multiple marks cannot happen at the same time.', ephemeral: true, fetchReply: true });
+    if (global.blMarkOngoing) { await i.reply({ content: 'Multiple marks cannot happen at the same time.', ephemeral: true }); return; }
 
     const victim = i.guild!.members.resolve(i.options.getUser('user')!)  || throwexc('Unresolvable [user]'), rolelist = i.guild!.roles.cache;
-    if (victim.user.bot) return await i.reply({ content: 'You cannot curse a bot user.', fetchReply: true });
+    if (victim.user.bot) { await i.reply({ content: 'You cannot curse a bot user.' }); return; }
 
     //#region Get the current tier, oncoming tier, and EmbedBuilder reference.
     const tierNow = victim.roles.cache.find((_, k) => TIER_SEQUENCE.includes(k));
-    if (tierNow?.id === DM_ROLES.GREYD) return await i.reply({ content: `This person is already at the final cursemark tier.`, ephemeral: true, fetchReply: true });
+    if (tierNow?.id === DM_ROLES.GREYD) { await i.reply({ content: `This person is already at the final cursemark tier.`, ephemeral: true }); return; }
 
     const tierNxt = rolelist.get(TIER_SEQUENCE[TIER_SEQUENCE.indexOf(tierNow?.id || '') + 1]) || throwexc('[tierNxt] could not resolve.') // Assumed GREYD has already been interrupted prior.
     , embed = new EmbedBuilder()
     .setAuthor({ name: 'GUILTY 💀, OR INNOCENT 😇' })
     .setThumbnail(victim.displayAvatarURL())
-    .setDescription(`${userMention(victim.id)} is about to be ${bold(tierNxt.name.toUpperCase())}.`)
+    .setDescription(`${userMention(victim.id)} is about to be ${roleMention(tierNxt.id)}.`)
     .setColor(tierNxt.color)
     .addFields({ name: 'Reason', value: i.options.getString('reason') || '---' });
     //#endregion
@@ -42,11 +42,11 @@ export const execute = async (i: ChatInputCommandInteraction) => {
     collector.on('end', async (c, r) => {
         try {
             global.blMarkOngoing = false;
-            if (r === 'messageDelete') { global.blMarkOngoing = false; return await collector.message.channel.send(`The imminent curse on ${userMention(victim.id)} has been wiped.`); }
+            if (r === 'messageDelete') { global.blMarkOngoing = false; await collector.message.channel.send(`The imminent curse on ${userMention(victim.id)} has been wiped.`); return; }
 
             const result = (() => {
                 const ysize = (c.find(e => e.emoji.name === '💀')?.count || 1) - 1, nsize = (c.find(e => e.emoji.name === '😇')?.count || 1) - 1;
-                return { unvoted: ysize <= 0 && nsize <= 0, sway: ysize - nsize, outcome: [`${bold(ysize.toString() + ' YES')} and ${bold(nsize.toString() + ' NO')}.\n`] };
+                return { unvoted: ysize <= 0 && nsize <= 0, sway: ysize - nsize, outcome: [bold(`${ysize.toString()} voted GUILTY, ${nsize.toString()} voted INNOCENT.`) + '\n'] };
             })();
             if (result.unvoted || result.sway > 0) {
                 const grouper = rolelist.get(DM_ROLES.MARKD) || throwexc('Unresolvable [grouper]')
@@ -55,7 +55,7 @@ export const execute = async (i: ChatInputCommandInteraction) => {
                     await gm.roles.add([tierNxt.id, grouper.id], 'Impacted by marking poll.');
                 };
 
-                result.outcome.push(`By ${result.unvoted ? 'default' : 'majority vote'}, ${userMention(victim.id)} is now ${bold(tierNxt.name.toUpperCase())}.`);
+                result.outcome.push(`By ${result.unvoted ? 'default' : 'majority vote'}, ${userMention(victim.id)} is now ${roleMention(tierNxt.id)}.`);
                 if ([ DM_ROLES.SCARL, DM_ROLES.KISMT ].includes(tierNxt.id) && random() >= 0.5) {
                     // Filter guild members that are not the victim themselves, and not any of the higher tiers.
                     const infect = grouper.members.filter(gm => gm.id !== victim.id && !gm.roles.cache.hasAny(DM_ROLES.GREYD, tierNxt.id === DM_ROLES.KISMT ? DM_ROLES.KISMT : DM_ROLES.GREYD)).random()!;
@@ -70,7 +70,5 @@ export const execute = async (i: ChatInputCommandInteraction) => {
         }
         catch (err) { Logger.basic(err) }
     });
-
     global.blMarkOngoing = true;
-    return collector.message;
 };

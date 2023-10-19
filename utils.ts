@@ -8,6 +8,7 @@ import { Collection
     , WebhookClient
     , Message
     , inlineCode,
+    channelMention,
 } from 'discord.js';
 import { webcrypto as wc } from 'node:crypto';
 import { CronJob, CronCommand } from 'cron';
@@ -50,24 +51,24 @@ export const throwexc = (s: string) => { throw Error(s) };
 //#endregion
 
 //#region LOGGER FUNCTIONS
-const logger = new WebhookClient({ url: 'https://discord.com/api/webhooks/1103945700141699142/s_u94Gm8OJej36OO_NGbsMpZF0uKv_TchsDNdRnSp2imxHaaQk_cnTvl2hRRHBcUeBsV' });
+const webhook = new WebhookClient({ url: 'https://discord.com/api/webhooks/1103945700141699142/s_u94Gm8OJej36OO_NGbsMpZF0uKv_TchsDNdRnSp2imxHaaQk_cnTvl2hRRHBcUeBsV' });
 export const Logger = {
     console: (...parts: any[]) => console.log(timestamp(), '\u00A0\u00A0', ...(parts.map(stringify))), // tabspace simulation
 
     basic: (a: any) => {
         (async () => {
             try {
-                await logger.send({ content: `${inlineCode(timestamp())} \u00A0\u00A0 ${a = stringify(a)}` });
+                await webhook.send({ content: `${inlineCode(timestamp())} \u00A0\u00A0 ${a = stringify(a)}` });
             } catch (e) { Logger.console('[Logger.basic] error:', e, '\n--------------------\n', a); }
         })();
     },
 
-    interact: (i: ChatInputCommandInteraction, rsp?: Message<boolean>, error?: any) => {
+    interact: (i: ChatInputCommandInteraction, error?: any) => {
         (async () => {
             const hasError = error !== undefined;
             try {
-                error = error && stringify(error);
-                await logger.send({ content: `${inlineCode(timestamp())} \u00A0\u00A0 ${hasError ? '[ERROR]' : ''} ${inlineCode(i.user.username)} triggered ${inlineCode(i.commandName)} ${rsp?.url || inlineCode('NO_URL')}` + (hasError ? codeBlock(error) : '') });
+                error = hasError && stringify(error) || 'UNRESOLVABLE_ERR';
+                await webhook.send({ content: `${inlineCode(timestamp())} \u00A0\u00A0 ${inlineCode(i.user.username)} initiated ${inlineCode(i.commandName)} in ${channelMention(i.channelId)} ${hasError ? codeBlock(error) : ''}` });
             } catch (e) { Logger.console('[Logger.interaction] error:', e, hasError ? `\n--------------------\n${error}` : ''); }
         })();
     }

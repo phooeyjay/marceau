@@ -8,13 +8,13 @@ export const data = new SlashCommandBuilder()
 
 export const execute = async (i: ChatInputCommandInteraction) => {
     const tier = i.guild!.members.resolve(i.user)?.roles.cache.find((_, k) => [DM_ROLES.DEATH, DM_ROLES.CANCR, DM_ROLES.SCARL, DM_ROLES.KISMT, DM_ROLES.GREYD, DM_ROLES.GHOST].includes(k));
-    if (!tier) return await i.reply({ content: `You may do this as a ${roleMention(DM_ROLES.MARKD)} person, or as a ${roleMention(DM_ROLES.GHOST)}`, ephemeral: true, fetchReply: true });
-
+    if (!tier) { await i.reply({ content: `You may do this as a ${roleMention(DM_ROLES.MARKD)} person, or as a ${roleMention(DM_ROLES.GHOST)}`, ephemeral: true }); return; }
+    
     const embed = new EmbedBuilder()
     .setAuthor({ name: tier.name.toUpperCase() })
     .setColor(tier.hexColor)
     .setDescription('Consultation in progress. Please be patient.')
-    , fetch = await i.reply({ content: `${userMention(i.user.id)}`, embeds: [embed], fetchReply: true })
+    , fetch = await i.reply({ content: `${userMention(i.user.id)}`, embeds: [embed] })
     , kt = i.guild!.roles.cache.get(DM_ROLES.KISMT);
 
     setTimeout(async () => {
@@ -41,5 +41,4 @@ export const execute = async (i: ChatInputCommandInteraction) => {
             //#endregion
         } catch (err) { Logger.basic(err); }
     }, 3_000);
-    return fetch;
 };

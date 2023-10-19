@@ -13,5 +13,5 @@ export const execute = async (i: ChatInputCommandInteraction) => {
     , validPeriod = hours > 0;
 
     await gm.timeout(validPeriod && hours * 3_600_000 || null);
-    await i.reply({ content: `${userMention(gm.id)} has been ` + (validPeriod ? `muted for ${bold(hours + ' hours')}.` : 'unmuted.'), ephemeral: !validPeriod, fetchReply: true });
+    await i.reply({ content: `${userMention(gm.id)} has been ` + (validPeriod ? `muted for ${bold(hours + ' hours')}.` : 'unmuted.'), ephemeral: !validPeriod });
 };
