@@ -21,24 +21,22 @@ export class ExtendedClient extends Client {
                     ('data' in cmd && 'execute' in cmd) && client.commands.set(cmd.data.name, cmd) || throwexc(`Missing property in [${f}]`);
                 }
                 await (new REST().setToken(process.env.TOKEN!)).put(Routes.applicationCommands(process.env.APPID || throwexc('APPID undefined.')), { body: client.commands.map(c => c.data.toJSON()) });
-
-                Scheduler.launch('0 0 0-23/6 * * *', () => {Logger.basic(`${inlineCode(c.user.tag)} is active.`) }, 'SYS_CLOCKIN');
-                Logger.console(`LOGIN: ${c.user.username}`);
-            } catch (err) { Logger.console('[Client.ready] error:', err); client.logout();  }
+                Logger.cli(`LOGIN: ${c.user.username}`);
+            } catch (err) { Logger.cli('[Client.ready] error:', err); client.logout();  }
         });
         client.on('interactionCreate', async i => {
             if (i.isChatInputCommand()) {
                 try {
                     await (client.commands.get(i.commandName) || throwexc(`Unknown command [${i.commandName}]`)).execute(i);
-                    Logger.interact(i);
+                    Logger.command(i);
                 } catch (err) {
                     (i.replied || i.deferred) && await i.deleteReply().then(async () => await i.channel?.send(ERROR_STRING)) || await i.reply({ content: ERROR_STRING });
-                    Logger.interact(i, err);
+                    Logger.command(i, err);
                 }
             }
         });
-        client.on('guildMemberRemove', async member => Logger.basic(`${inlineCode(member.user.username || member.user.tag)} has left the server.`));
-        ['SIGINT', 'SIGTERM'].forEach(sig => process.on(sig, () => { Logger.console('Exiting.'); client.logout() }));
+        client.on('guildMemberRemove', async member => Logger.plaintext(`${inlineCode(member.user.username || member.user.tag)} has left the server.`));
+        ['SIGINT', 'SIGTERM'].forEach(sig => process.on(sig, () => { Logger.cli('Exiting.'); client.logout() }));
         //#endregion
 
         return client;
