@@ -28,8 +28,8 @@ export const timestamp = () => new Date().toLocaleString('en-GB', { timeZone: TZ
 /** Uint8Array randomized between 0 ~ 255. Division with 256 to ensure number between 0 (inclusive) and 1 (exclusive). */
 export const random = ((sz?: number) => {
     const arr = Array.from(wc.getRandomValues(new Uint8Array(sz && Math.max(sz, 1) || 1)), n => n / 256);
-    return (sz && sz > 1) && arr || arr[0];
-}) as (() => number) & ((sz: number) => number & number[]);
+    return !sz && arr[0] || arr;
+}) as (() => number) & ((sz: number) => number[]);
 
 /** Create a basic poll independent of the scenario it is called in. */
 export const pollnew = async (target: RepliableInteraction, deadline: number | undefined, contents: MessageCreateOptions, options: Record<string, (r: MessageReaction, u: User) => void>) => {
