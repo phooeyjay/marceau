@@ -5,9 +5,9 @@ import { ERROR_STRING } from './constants';
 export class ExtendedClient extends Client {
     private commands: Collection<string, { data: any, execute: any }> = new Collection();
 
-    logout () { (async () => { await this.destroy(); Scheduler.halt(); process.exit(1); })() }
+    logout = () => (async () => { await this.destroy(); Scheduler.halt(); process.exit(1); })()
 
-    static initialize () {
+    static initialize = () => {
         const client = new ExtendedClient({ 
             intents:    [ 'Guilds', 'GuildMembers', 'GuildMessages', 'GuildMessageReactions' ],
             presence:   { status: process.env.DEBUG && 'invisible' || 'online' } // Whatever the fuck 'invisible' is in this context.
