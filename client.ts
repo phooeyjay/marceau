@@ -1,10 +1,9 @@
 import { Client, Collection, REST, Routes, inlineCode } from 'discord.js';
 import { Logger, Scheduler, throwexc } from './utils';
-import { ERROR_STRING } from './constants';
+import { ERR_RETRY } from './constants';
+import { dataset, route } from './routecommands'
 
 export class ExtendedClient extends Client {
-    private commands: Collection<string, { data: any, execute: any }> = new Collection();
-
     logout = () => (async () => { await this.destroy(); Scheduler.halt(); process.exit(1); })()
 
     static initialize = () => {
@@ -16,21 +15,17 @@ export class ExtendedClient extends Client {
         //#region Event listeners - initialization
         client.once('ready', async c => {
             try {
-                for (const f of (await import('node:fs')).readdirSync('./commands').filter(f => f.endsWith('.ts'))) {
-                    const cmd = (await import(`./commands/${f}`));
-                    ('data' in cmd && 'execute' in cmd) && client.commands.set(cmd.data.name, cmd) || throwexc(`Missing property in [${f}]`);
-                }
-                await (new REST().setToken(process.env.TOKEN!)).put(Routes.applicationCommands(process.env.APPID || throwexc('APPID undefined.')), { body: client.commands.map(c => c.data.toJSON()) });
+                await (new REST().setToken(process.env.TOKEN!)).put(Routes.applicationCommands(process.env.APPID!), { body: dataset });
                 Logger.cli(`LOGIN: ${c.user.username}`);
             } catch (err) { Logger.cli('[Client.ready] error:', err); client.logout();  }
         });
         client.on('interactionCreate', async i => {
             if (i.isChatInputCommand()) {
                 try {
-                    await (client.commands.get(i.commandName) || throwexc(`Unknown command [${i.commandName}]`)).execute(i);
+                    await route(i.commandName, i);
                     Logger.command(i);
                 } catch (err) {
-                    (i.replied || i.deferred) && await i.deleteReply().then(async () => await i.channel?.send(ERROR_STRING)) || await i.reply({ content: ERROR_STRING });
+                    (i.replied || i.deferred) && await i.deleteReply().then(async () => await i.channel?.send(ERR_RETRY)) || await i.reply({ content: ERR_RETRY });
                     Logger.command(i, err);
                 }
             }
