@@ -25,7 +25,7 @@ export const timestamp = () => new Date().toLocaleString('en-GB', { timeZone: TZ
 export const random = ((sz?: number) => {
     const arr = Array.from(wc.getRandomValues(new Uint8Array(sz ? Math.max(sz, 1) : 1)), n => n / 256);
     return (!sz || sz <= 1) ? arr[0] : arr;
-}) as (() => number) & ((a: number) => number | number[]);
+}) as (() => number) & ((a: number) => number[]);
 
 export const throwexc = (s: string) => { throw Error(s) };
 //#endregion
