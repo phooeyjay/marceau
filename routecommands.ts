@@ -2,7 +2,7 @@
  * Landing file to export layout and process handling for ApplicationCommands.
  */
 import { ChatInputCommandInteraction, EmbedBuilder, GuildMember, SlashCommandBuilder, bold, inlineCode, roleMention, time } from 'discord.js';
-import { Logger, random, throwexc } from './utils';
+import { Logger, arbit, throwexc } from './utils';
 import { ROLE_CM, TFRAME_MSECS } from './constants';
 
 //#region PRIVATE VARIABLES
@@ -77,7 +77,7 @@ export const route = async (name: string, i: ChatInputCommandInteraction) => {
                         };
         
                         result.outcome.push(`By ${result.unvoted ? 'default' : 'majority vote'}, ${victim} is now ${cmnxt}.`);
-                        if (CM_SEQ.slice(1, -1).includes(cmnxt.id) && random() >= 0.75) {
+                        if (CM_SEQ.slice(1, -1).includes(cmnxt.id) && arbit()[0] >= 0.75) {
                             // Filter guild members that are not the victim themselves, and not any of the higher tiers.
                             const infect = grouper.members.filter(gm => gm !== victim && !gm.roles.cache.hasAny(ROLE_CM.SHADE, cmnxt.id === ROLE_CM.KISMT ? ROLE_CM.KISMT : ROLE_CM.SHADE)).random()!;
                             result.outcome.push(`${infect} is also converted due collateral.`);
@@ -101,34 +101,30 @@ export const route = async (name: string, i: ChatInputCommandInteraction) => {
         }; break;
     
         case 'pray': {
-            const cm = i.guild!.members.resolve(i.user)?.roles.cache.find((_, k) => CM_SEQ.includes(k));
+            const cm = i.guild!.members.resolve(i.user)?.roles.cache.find((_, k) => CM_SEQ.includes(k) || k === ROLE_CM.GHOST);
             if (!cm) { await i.reply({ ephemeral: true, content: `You don\'t have the right role for this action.` }); return; }
         
-            const embed = new EmbedBuilder().setColor(cm.hexColor).setDescription('System is thinking...')
-            , fetch = await i.reply({ content: `${i.user}`, embeds: [embed] });
-
+            const fetch = await i.reply({ ephemeral: true, content: 'Awaiting consultation. If this message persists, please inform the Server Owner.', fetchReply: true });
             setTimeout(async () => {
                 try {
-                    //#region Initiliaze the chance distribution for the rolling dice.
-                    const kt = i.guild!.roles.cache.get(ROLE_CM.KISMT)
-                    , chance_dist = (impact = [0, 0, 0, 0, 0, 0], faces = [1, 2, 3, 4, 5, 6]) => {
-                        const remainder_dist = (0.99 - (impact = impact.map(v => v !== 0 && 0.165 + v || v)).reduce((s, n) => s + n)) / impact.filter(n => n === 0).length;
-                        impact = impact.map(v => v === 0 && remainder_dist || v);
-                        return faces.map((v, ix) => ({ max: impact.slice(0, ix + 1).reduce((s, n) => s + n), value: v }))
-                    }
-                    , chances = ((r, has) => 
-                        (r === ROLE_CM.GHOST && has || r === ROLE_CM.SHADE) ? chance_dist([-0.1, 0, 0, 0, 0.05, 0.05])
-                        : CM_SEQ.slice(1, -1).includes(r) ? chance_dist([0.05, 0, 0, 0, -0.0125, -0.0375], [0, 1, 2, 3, 4, 5])
-                        : chance_dist([0.0375, 0.0125, 0, 0, -0.025, -0.025])
-                    )(cm.id, kt && kt.members.size > 0);
-                    //#endregion
-                    
-                    //#region Update the result display.
-                    const res = (random([ROLE_CM.SHADE, ROLE_CM.GHOST].includes(cm.id) ? 1 : 5) as number[]).map(n => chances.find(p => p.max >= n)!.value)
-                    , desc = [bold(`[${cm.name.toUpperCase()}]`).toString(), inlineCode(`« ${res.map(n => n === 0 ? '💀' : n).join(', ')} »`).toString()];
-                    if (res.length > 1 && res.every(n => n !== 0)) desc.push('Sum: ' + inlineCode(res.reduce((sum, n) => sum + n)?.toString()));
-                    await fetch.edit({ embeds: [embed.setDescription(desc.join(' '))] });
-                    //#endregion
+                    const res = (() => {
+                        const once = [ROLE_CM.GHOST, ROLE_CM.SHADE].includes(cm.id)
+                        , carrier = CM_SEQ.slice(1, -1).includes(cm.id)
+                        , diehard = cm.id === ROLE_CM.GHOST && (i.guild!.roles.cache.get(ROLE_CM.KISMT)?.members.size || 0) > 0 || cm.id === ROLE_CM.SHADE;
+
+                        const faces = carrier ? [0, 1, 1, 3, 3, 5] : [1, 2, 3, 4, 5, 6];
+                        const dist = ((impact: number[]) => {
+                            const basechance = 0.990 / impact.reduce((a, b) => a + b);
+                            return impact.map(n => n * basechance).map((_, ix, ar) => ar.slice(0, ix + 1).reduce((a, b) => a + b));
+                        })(diehard ? [0.75, 1, 1, 1, 1, 1.75] : carrier ? [1.69, 1, 1, 1, 1, 1] : [1, 1, 1, 1, 1, 1]);
+
+                        const end = arbit(once ? 1 : 5).map(n => faces[dist.findIndex(v => v >= n)]);
+                        return { arr: `❰ ${end.map(n => n === 0 ? '💀' : n).join(', ')} ❱`, sum: end.length > 1 && end.every(n => n !== 0) ? `❰ ${end.reduce((a, b) => a + b)} ❱` : undefined };
+                    })();
+
+                    const desc = [bold(cm.name.toUpperCase()), '▸', inlineCode(res.arr), res.sum ? '▸ ' + inlineCode(res.sum) : undefined].join(' ').trim();
+                    await fetch.channel.send({ content: `${i.user}`, embeds: [new EmbedBuilder().setColor(cm.hexColor).setDescription(desc)] });
+                    await i.deleteReply();
                 } catch (err) { Logger.plaintext(err) }
             }, 3_000);
         }; break;

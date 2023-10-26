@@ -22,10 +22,7 @@ export const stringify = (a: any) => a instanceof Error ? (a.stack || 'UNKNOWN_E
 export const timestamp = () => new Date().toLocaleString('en-GB', { timeZone: TZ_GMT8, timeZoneName: 'shortOffset' });
 
 /** Uint8Array randomized between 0 ~ 255. Division with 256 to ensure number between 0 (inclusive) and 1 (exclusive). */
-export const random = ((sz?: number) => {
-    const arr = Array.from(wc.getRandomValues(new Uint8Array(sz ? Math.max(sz, 1) : 1)), n => n / 256);
-    return (!sz || sz <= 1) ? arr[0] : arr;
-}) as (() => number) & ((a: number) => number[]);
+export const arbit = (sz?: number) => Array.from(wc.getRandomValues(new Uint8Array(sz = Math.max(sz ?? 0, 1))), n => n / 256);
 
 export const throwexc = (s: string) => { throw Error(s) };
 //#endregion
