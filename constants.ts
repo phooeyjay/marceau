@@ -1,13 +1,13 @@
-export const DM_ROLES = {
-    CROWD: '1118920690389753926',
+export const ROLE_CM = {
+    GROUP: '1118920690389753926',
     MARKD: '1157215835111292989',
     GHOST: '1040876824072306778',
 
     DEATH: '1040275023421788230',
-    CANCR: '1097173236481015818',
     SCARL: '1104939572489621504',
     KISMT: '1128738410849370192',
-    GREYD: '1129088756348092416'
+    SHADE: '1129088756348092416'
 }
+, TFRAME_MSECS = 2 * 60 * 1_000
 , TZ_GMT8 = 'Asia/Singapore'
-, ERROR_STRING = 'Something went wrong. Try again in five (5) minutes.';
+, ERR_RETRY = 'Something went wrong. Try again in five (5) minutes.';
