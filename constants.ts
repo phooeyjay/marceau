@@ -8,5 +8,6 @@ export const ROLE_CM = {
     KISMT: '1128738410849370192',
     SHADE: '1129088756348092416'
 }
+, CM_SEQUENCE = [ROLE_CM.DEATH, ROLE_CM.SCARL, ROLE_CM.KISMT, ROLE_CM.SHADE]
 , TFRAME_MSECS = 2 * 60 * 1_000
 , ERR_RETRY = 'Something went wrong. Try again in five (5) minutes.';
