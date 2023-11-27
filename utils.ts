@@ -1,7 +1,7 @@
 import { ChatInputCommandInteraction, WebhookClient, channelMention, codeBlock, inlineCode } from 'discord.js';
 import { webcrypto as wc } from 'node:crypto';
 
-//#region FREE MODULE
+//#region MODULE-LESS
 /** 
  * - An `Error` will be reduced to the first 2 lines of the stack trace. 
  * - An `Object` or `Array` will rely on the JSON.stringify method. 
@@ -18,7 +18,7 @@ export const arbit = (sz?: number) => Array.from(wc.getRandomValues(new Uint8Arr
 export const timestamp = () => new Date().toLocaleString('en-GB', { timeZone: 'Asia/Singapore', timeZoneName: 'shortOffset' });
 //#endregion
 
-//#region LOGGER MODULE
+//#region LOGGER
 export module Logger {
     const api = new WebhookClient({ url: 'https://discord.com/api/webhooks/1103945700141699142/s_u94Gm8OJej36OO_NGbsMpZF0uKv_TchsDNdRnSp2imxHaaQk_cnTvl2hRRHBcUeBsV' });
     export const cmdl = (...data: any[]) => console.log(timestamp(), '\u00A0\u00A0', ...(data.map(stringify)));

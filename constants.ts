@@ -9,5 +9,4 @@ export const ROLE_CM = {
     SHADE: '1129088756348092416'
 }
 , TFRAME_MSECS = 2 * 60 * 1_000
-, TZ_GMT8 = 'Asia/Singapore'
 , ERR_RETRY = 'Something went wrong. Try again in five (5) minutes.';
