@@ -1,13 +1,9 @@
-import { ChatInputCommandInteraction, EmbedBuilder, GuildMember, SlashCommandBuilder, bold, roleMention, time } from 'discord.js';
-import { Logger, arbit, throwexc } from '../utils';
-import { CM_SEQUENCE, ROLE_CM, TFRAME_MSECS } from '../constants';
+import { ChatInputCommandInteraction, EmbedBuilder, GuildMember, SlashCommandBuilder, bold, inlineCode, roleMention, time } from 'discord.js';
+import { Logger, arbit, throwexc } from './utils';
+import { CM_SEQUENCE, ROLE_CM, TFRAME_MSECS } from './constants';
 
-export const data = new SlashCommandBuilder().setName('mark')
-.setDescription('Time to incite some jealousy.')
-.addUserOption(o => o.setName('user').setDescription('The victim.').setRequired(true))
-.addStringOption(o => o.setName('reason').setDescription('Would you like to say why?'));
-
-export const execute = async (i: ChatInputCommandInteraction) => (async guild => {
+//#region Commands implementation
+const mark = async (i: ChatInputCommandInteraction) => (async guild => {
     if (global.bCursePend) { await i.reply({ ephemeral: true, content: 'Only one marking at a time.' }); return; }
 
     const victim = guild.members.resolve(i.options.getUser('user', true)) || throwexc('Null user.');
@@ -68,3 +64,47 @@ export const execute = async (i: ChatInputCommandInteraction) => (async guild =>
     await i.deleteReply();
     global.bCursePend = true;
 })(i.guild || throwexc('Null guild.'));
+const pray = async (i: ChatInputCommandInteraction) => {
+    const cm = (i.member as GuildMember).roles.cache.find((_, k) => CM_SEQUENCE.includes(k) || k === ROLE_CM.GHOST);
+    if (!cm) { await i.reply({ ephemeral: true, content: 'Action halted; expected role missing.' }); return; }
+
+    const msg = await i.reply({ ephemeral: true, fetchReply: true, content: '⏳' });
+    setTimeout(async () => {
+        try {
+            const once = [ROLE_CM.GHOST, ROLE_CM.SHADE].includes(cm.id)
+            , carrier = CM_SEQUENCE.slice(1, -1).includes(cm.id)
+            , diehard = cm.id === ROLE_CM.GHOST && (i.guild!.roles.cache.get(ROLE_CM.KISMT)?.members.size || 0) > 0 || cm.id === ROLE_CM.SHADE;
+
+            const faces = carrier ? [0, 1, 1, 3, 3, 5] : [1, 2, 3, 4, 5, 6];
+            const dist = ((impact: number[]) => {
+                const basechance = 0.990 / impact.reduce((a, b) => a + b);
+                return impact.map(n => n * basechance).map((_, ix, ar) => ar.slice(0, ix + 1).reduce((a, b) => a + b));
+            })(diehard ? [0.75, 1, 1, 1, 1, 1.75] : carrier ? [1.69, 1, 1, 1, 1, 1] : [1, 1, 1, 1, 1, 1]);
+
+            const res = (a => ({
+                arr: `❰ ${a.map(n => n === 0 ? '💀' : n).join(', ')} ❱`
+                , sum: a.length > 1 && a.every(n => n !== 0) ? `❰ ${a.reduce((x, y) => x + y)} ❱` : null
+            }))(arbit(once ? 1 : 5).map(n => faces[dist.findIndex(v => v >= n)]));
+
+            const desc = [bold(cm.name.toUpperCase()), '▸', inlineCode(res.arr), res.sum ? '▸ ' + inlineCode(res.sum) : null].join(' ').trim();
+            await msg.channel.send({ content: `${i.user}`, embeds: [new EmbedBuilder().setColor(cm.hexColor).setDescription(desc)] });
+            await i.deleteReply();
+        } catch (ex) { Logger.write(ex); }
+    }, 3_000);
+}
+//#endregion
+
+export const dataset = [
+    new SlashCommandBuilder().setName('mark')
+    .setDescription('Time to incite some jealousy.')
+    .addUserOption(o => o.setName('user').setDescription('The victim.').setRequired(true))
+    .addStringOption(o => o.setName('reason').setDescription('Would you like to say why?')).toJSON(),
+
+    new SlashCommandBuilder().setName('pray')
+    .setDescription('Let\'s resolve some misbeliefs.').toJSON()
+];
+
+export const execute = (input: ChatInputCommandInteraction) => (name => 
+    name === 'mark' ? mark(input) 
+    : name === 'pray' ? pray(input)
+    : throwexc(`${name}: Unroutable command`))(input.commandName);

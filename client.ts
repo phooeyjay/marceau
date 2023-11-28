@@ -1,10 +1,9 @@
 import { Client, Collection, REST, Routes, inlineCode } from 'discord.js';
 import { Logger, throwexc } from './utils';
 import { ERR_RETRY } from './constants';
+import { dataset, execute } from './slashcommands';
 
 export class ExtendedClient extends Client {
-    private dictionary = new Collection<string, any>();
-
     logout = () => (async () => { await this.destroy(); process.exit(1); })();
     static create = () => {
         const client = new ExtendedClient({
@@ -15,21 +14,14 @@ export class ExtendedClient extends Client {
         //#region Initializing event listeners
         client.once('ready', async c => {
             try {
-                (await import('node:fs')).readdirSync(`./slashcommands`).filter(f => f.endsWith('.ts')).forEach(async f => (imp => {
-                    ('data' in imp && 'execute' in imp) && client.dictionary.set(imp.data.name, imp) || throwexc(`${f}: missing _data_ or _execute_.`);
-                })(await import(`./slashcommands/${f}`)));
-
-                await (new REST().setToken(process.env.TOKEN!)).put(Routes.applicationCommands(process.env.APPID!), { 
-                    body: Array.from(client.dictionary.values()).map(v => v.data.toJSON()) 
-                });
+                await (new REST().setToken(process.env.TOKEN!)).put(Routes.applicationCommands(process.env.APPID!), { body: dataset });
                 Logger.cmdl(`LOGIN: ${c.user.username}`);
             } catch (ex) { Logger.cmdl(ex); client.logout(); }
         });
         client.on('interactionCreate', async i => {
             if (i.isChatInputCommand()) {
                 try {
-                    const cmd = client.dictionary.get(i.commandName) || throwexc(`${i.commandName}: Get failed.`);
-                    await cmd.execute(i);
+                    await execute(i);
                     Logger.command(i);
                 } catch (ex) {
                     if (i.replied || i.deferred) {
