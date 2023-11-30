@@ -44,29 +44,35 @@ export module Logger {
 //#region DYNAMODB
 export module DB {
     type RegisteredSchema = 'UserProfile' | 'Markend';
+    type UpdateExpression = ['SET' | 'ADD' | 'DELETE' | 'REMOVE', attribute: string, value?: string];
     const connect = () => DynamoDBDocument.from(new DynamoDB({ 
         apiVersion: process.env.APIVER,
         region: process.env.REGION,
         credentials: { secretAccessKey: process.env.SECRET!, accessKeyId: process.env.ACCKEY! }
     }));
-    export const table = (schema: RegisteredSchema) => (conn => ({
-        fetch: async (key: Record<string, any>) => (await conn.get({
-            Key: key,
-            TableName: schema,
-            ConsistentRead: true
-        })).Item || null,
-        insert: async (item: Record<string, any>) => (await conn.put({
-            Item: item,
-            TableName: schema,
-            ReturnValues: 'UPDATED_NEW'
-        })).Attributes !== undefined,
-        update: async (key: Record<string, any>, updates: { [attribute: string]: { Action: 'ADD' | 'PUT' | 'DELETE', Value: any } }, condition: string) => (await conn.update({
-            Key: key,
-            TableName: schema,
-            AttributeUpdates: updates,
-            ReturnValues: 'UPDATD_NEW',
-            ConditionExpression: condition
-        })).Attributes !== undefined
-    }))(connect());
+    export const table = (schema: RegisteredSchema) => (connection => {
+        return {
+            get: async (key: Record<string, any>, columns?: string[]) => {
+                try {
+                    return (await connection.get({
+                        TableName: schema,
+                        Key: key,
+                        ProjectionExpression: columns?.join(', ')
+                    })).Item || null;
+                } catch (ex) { Logger.write(ex); return null; }
+            },
+            put: async (key: Record<string, any>, updates: UpdateExpression[]) => {
+                try {
+                    const mappedString = updates.map(([o, a, v]) => o === 'REMOVE' ? `${o} ${a}` : o === 'SET' ? `${o} ${a} = ${v}` : `${o} ${a} ${v}`).join(', ');
+                    return (await connection.update({
+                        TableName: schema,
+                        Key: key,
+                        UpdateExpression: mappedString,
+                        ReturnValues: 'UPDATED_NEW'
+                    })).Attributes !== undefined;
+                } catch (ex) { Logger.write(ex); return false; }
+            }
+        }
+    })(connect());
 }
 //#endregion
