@@ -1,5 +1,7 @@
 import { ChatInputCommandInteraction, WebhookClient, channelMention, codeBlock, inlineCode } from 'discord.js';
 import { webcrypto as wc } from 'node:crypto';
+import { DynamoDB } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocument } from '@aws-sdk/lib-dynamodb';
 
 //#region MODULE-LESS
 /** 
@@ -40,50 +42,31 @@ export module Logger {
 //#endregion
 
 //#region DYNAMODB
-export module DynamoDB {
+export module DB {
     type RegisteredSchema = 'UserProfile' | 'Markend';
-    
+    const connect = () => DynamoDBDocument.from(new DynamoDB({ 
+        apiVersion: process.env.APIVER,
+        region: process.env.REGION,
+        credentials: { secretAccessKey: process.env.SECRET!, accessKeyId: process.env.ACCKEY! }
+    }));
+    export const table = (schema: RegisteredSchema) => (conn => ({
+        fetch: async (key: Record<string, any>) => (await conn.get({
+            Key: key,
+            TableName: schema,
+            ConsistentRead: true
+        })).Item || null,
+        insert: async (item: Record<string, any>) => (await conn.put({
+            Item: item,
+            TableName: schema,
+            ReturnValues: 'UPDATED_NEW'
+        })).Attributes !== undefined,
+        update: async (key: Record<string, any>, updates: { [attribute: string]: { Action: 'ADD' | 'PUT' | 'DELETE', Value: any } }, condition: string) => (await conn.update({
+            Key: key,
+            TableName: schema,
+            AttributeUpdates: updates,
+            ReturnValues: 'UPDATD_NEW',
+            ConditionExpression: condition
+        })).Attributes !== undefined
+    }))(connect());
 }
-// type TableName = 'Member' | undefined;
-// export abstract class DB {
-//     static Connection = class implements Disposable {
-//         private _ct = new DynamoDB({ 
-//             apiVersion: process.env.APIVER, 
-//             region: process.env.REGION, 
-//             credentials: { secretAccessKey: process.env.SECRET || throwexc('[env.SECRET] undefined.'), accessKeyId: process.env.ACCKEY || throwexc('[env.ACCKEY] undefined.') } 
-//         });
-//         dt = DynamoDBDocument.from(this._ct);
-//         [Symbol.dispose] = () => [this.dt, this._ct].forEach(asset => asset.destroy());
-//     }
-
-//     static fetch = async (t: TableName, k: Record<string, any>) => {
-//         try {
-//             return (await (new DB.Connection()).dt.get({ 
-//                 TableName: t, 
-//                 Key: k, 
-//                 ConsistentRead: true 
-//             })).Item;
-//         } catch (err) { Logger.plaintext(err); return undefined; }
-//     };
-//     static insert = async (t: TableName, item: Record<string, any>) => {
-//         try {
-//             return (await (new DB.Connection()).dt.put({
-//                 TableName: t,
-//                 Item: item,
-//                 ReturnValues: 'UPDATED_NEW'
-//             }))?.Attributes !== undefined
-//         } catch (err) { Logger.plaintext(err); return false; }
-//     };
-//     static update = async (t: TableName, key: Record<string, any>, updates: { [attribute: string]: { Action: 'ADD' | 'PUT' | 'DELETE', Value: any } }, condition: string ) => {
-//         try {
-//             return (await (new DB.Connection()).dt.update({
-//                 TableName: t,
-//                 Key: key,
-//                 AttributeUpdates: updates,
-//                 ConditionExpression: condition,
-//                 ReturnValues: 'UPDATED_NEW'
-//             }))?.Attributes !== undefined;
-//         } catch (err) { Logger.plaintext(err); return false; }
-//     };
-// }
 //#endregion
