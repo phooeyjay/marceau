@@ -12,7 +12,7 @@ export const stringify = (a: any) => a instanceof Error ? (a.stack?.split('\n').
 export const throwexc = (e: string | Error) => { throw e instanceof Error ? e : Error(e); }
 
 /** Uint8Array randomized between 0 ~ 255. Division with 256 to ensure number between 0 (inclusive) and 1 (exclusive). */
-export const arbit = (sz?: number) => Array.from(wc.getRandomValues(new Uint8Array(sz = Math.max(sz ?? 0, 1))), n => n / 256);
+export const arbitrary = (sz?: number) => Array.from(wc.getRandomValues(new Uint8Array(sz = Math.max(sz ?? 0, 1))), n => n / 256);
 
 /** Current datetime as a string, which follows the format `dd/mm/yyyy, hh:mm:ss TZ`  */
 export const timestamp = () => new Date().toLocaleString('en-GB', { timeZone: 'Asia/Singapore', timeZoneName: 'shortOffset' });
@@ -39,7 +39,11 @@ export module Logger {
 }
 //#endregion
 
-// //#region DYNAMODB
+//#region DYNAMODB
+export module DynamoDB {
+    type RegisteredSchema = 'UserProfile' | 'Markend';
+    
+}
 // type TableName = 'Member' | undefined;
 // export abstract class DB {
 //     static Connection = class implements Disposable {
@@ -82,4 +86,4 @@ export module Logger {
 //         } catch (err) { Logger.plaintext(err); return false; }
 //     };
 // }
-// //#endregion
+//#endregion

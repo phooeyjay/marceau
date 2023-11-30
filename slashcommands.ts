@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, EmbedBuilder, GuildMember, SlashCommandBuilder, bold, inlineCode, roleMention, time } from 'discord.js';
-import { Logger, arbit, throwexc } from './utils';
+import { Logger, arbitrary, throwexc } from './utils';
 import { CM_SEQUENCE, ROLE_CM, TFRAME_MSECS } from './constants';
 
 //#region Commands implementation
@@ -49,7 +49,7 @@ const mark = async (i: ChatInputCommandInteraction) => (async guild => {
                 };
 
                 result.outcome.push(`By ${result.unvoted ? 'default' : 'majority vote'}, ${victim} is now ${cmnx}.`);
-                if (CM_SEQUENCE.slice(1, -1).includes(cmnx.id) && arbit()[0] >= 0.75) {
+                if (CM_SEQUENCE.slice(1, -1).includes(cmnx.id) && arbitrary()[0] >= 0.75) {
                     // Filter guild members that are not the victim themselves, and not any of the higher tiers.
                     const infect = grouper.members.filter(gm => gm !== victim && !gm.roles.cache.hasAny(ROLE_CM.SHADE, cmnx.id === ROLE_CM.KISMT ? ROLE_CM.KISMT : ROLE_CM.SHADE)).random()!;
                     result.outcome.push(`${infect} is also converted due collateral.`);
@@ -84,7 +84,7 @@ const pray = async (i: ChatInputCommandInteraction) => {
             const res = (a => ({
                 arr: `❰ ${a.map(n => n === 0 ? '💀' : n).join(', ')} ❱`
                 , sum: a.length > 1 && a.every(n => n !== 0) ? `❰ ${a.reduce((x, y) => x + y)} ❱` : null
-            }))(arbit(once ? 1 : 5).map(n => faces[dist.findIndex(v => v >= n)]));
+            }))(arbitrary(once ? 1 : 5).map(n => faces[dist.findIndex(v => v >= n)]));
 
             const desc = [bold(cm.name.toUpperCase()), '▸', inlineCode(res.arr), res.sum ? '▸ ' + inlineCode(res.sum) : null].join(' ').trim();
             await msg.channel.send({ content: `${i.user}`, embeds: [new EmbedBuilder().setColor(cm.hexColor).setDescription(desc)] });
