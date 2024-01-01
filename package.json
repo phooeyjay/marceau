@@ -12,7 +12,7 @@
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.425.0",
     "@aws-sdk/lib-dynamodb": "^3.425.0",
-    "cron": "^2.4.4",
+    "cron": "^3.1.6",
     "discord.js": "^14.13.0",
     "dotenv": "^16.3.1"
   },
