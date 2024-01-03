@@ -74,7 +74,9 @@ export module LOG {
 }
 
 export module DB {
-    type USER_PROFILE = { guild: string, username: string, total_exp: number, updated: string };
+    //#region SCHEMA DECLARATIONS
+    type USER_PROFILE = { guild: string, username: string, accumulated_exp: number, updated: string, inventory: { talents: string[], hex_tokens: number } };
+    //#endregion
 
     const connect = () => DynamoDBDocument.from(new DynamoDBClient({ 
         apiVersion: process.env.APIVER!
@@ -98,7 +100,9 @@ export module DB {
         return { fetch, place };
     })(connect());
 
-    export const usersync = async (client: Client) => {
+    export const get_user = async (uid: string) => await table('UserProfile').fetch<Pick<USER_PROFILE, 'accumulated_exp' | 'inventory'>>({ id: uid });
+
+    export const sync_users = async (client: Client) => {
         try {
             LOG.text('SYNC_PROFILES ▸ Begin.');
             type SYNC_PROFILE = Pick<USER_PROFILE, 'guild' | 'username' | 'updated'>;

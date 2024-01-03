@@ -1,5 +1,5 @@
-import { ChatInputCommandInteraction, Collection, EmbedBuilder, GuildMember, Role, SlashCommandBuilder, TextChannel, bold, inlineCode, roleMention } from 'discord.js';
-import { throwexc, datetime, rng, defer, LOG } from './utils';
+import { ChatInputCommandInteraction, Collection, EmbedBuilder, Guild, GuildMember, Role, SlashCommandBuilder, TextChannel, bold, inlineCode, roleMention } from 'discord.js';
+import { throwexc, datetime, rng, defer, LOG, DB } from './utils';
 declare global { var bCursePend: boolean; var cCooldownCodex: Collection<string, number> }
 
 module HEX {
@@ -20,7 +20,7 @@ module HEX {
     })(process.env.HEX_ROLES)
     , HEX_SERIES        = [HEX_ROLES.DEATH, HEX_ROLES.SCARL, HEX_ROLES.KISMT, HEX_ROLES.SHADE];
 
-    const SPREADABLE    = (r: string) => HEX_SERIES.slice(1, -1).includes(r);
+    const indirect_hex  = (r: string) => HEX_SERIES.slice(1, -1).includes(r);
 
     export module MARK {
         export const data   = new SlashCommandBuilder().setName('mark')
@@ -28,7 +28,7 @@ module HEX {
         .addUserOption(o    => o.setName('user').setDescription('The user.').setRequired(true))
         .addStringOption(o  => o.setName('why').setDescription('A reason, if any, for this action.'));
 
-        const MAKE_EMBED    = (state: Role, who: GuildMember, why: string | null) => {
+        const make_embed    = (state: Role, who: GuildMember, why: string | null) => {
             const _ = new EmbedBuilder()
             .setColor(state.color)
             .setDescription(`${who} is about to be ${state}`)
@@ -36,13 +36,13 @@ module HEX {
             return why ? _.addFields({ name: 'Cause of Affliction', value: why }) : _;
         };
 
-        const RESOLVE_HEX   = async ({ roles, id }: GuildMember, set: Role[]) => {
+        const resolve_hex   = async ({ roles, id }: GuildMember, set: Role[]) => {
             await roles.remove(HEX_SERIES);
             await roles.add(set, 'Afflicted by /mark.');
             global.cCooldownCodex.set(id, Date.now());
-        }
+        };
 
-        export const exec   = async (i: ChatInputCommandInteraction): Promise<LOG.RESULT_BODY> => (async guild => {
+        export const exec   = (i: ChatInputCommandInteraction): Promise<LOG.RESULT_BODY> => (async guild => {
             if (global.bCursePend) return ['complete', await i.reply({ fetchReply: true, ephemeral: true, content: 'Only one marking at a time.' }), null];
     
             const victim = guild.members.resolve(i.options.getUser('user', true)) || throwexc('Null user.');
@@ -58,7 +58,7 @@ module HEX {
             const roles = await guild.roles.fetch()
             , next = roles.get(HEX_SERIES[curr?.id ? Math.min(HEX_SERIES.length - 1, HEX_SERIES.indexOf(curr.id) + 1): 0]) || throwexc('Null next tier.');
 
-            const embed = MAKE_EMBED(next, victim, i.options.getString('reason'));
+            const embed = make_embed(next, victim, i.options.getString('reason'));
             
             await defer(i);
             const m = await (i.channel as TextChannel).send({ 
@@ -86,12 +86,12 @@ module HEX {
                         const grouper = roles.get(HEX_ROLES.MARKD) || throwexc('Null grouper.');
         
                         bits.push(`By ${unvoted ? 'default' : 'majority vote'}, ${victim} is now ${next}.`);
-                        if (SPREADABLE(next.id) && rng() >= 0.625) {
+                        if (indirect_hex(next.id) && rng() >= 0.625) {
                             // Filter guild members that are not the victim themselves, and not any of the higher tiers.
                             const infect = grouper.members.filter(gm => gm !== victim && !gm.roles.cache.hasAny(HEX_ROLES.SHADE, next.id === HEX_ROLES.KISMT ? HEX_ROLES.KISMT : HEX_ROLES.SHADE)).random()!;
                             bits.push(`${infect} has also been afflicted due to the nature of the curse.`);
-                            for (const gm of [victim, infect]) await RESOLVE_HEX(gm, [grouper, next]);
-                        } else await RESOLVE_HEX(victim, [grouper, next]);
+                            for (const gm of [victim, infect]) await resolve_hex(gm, [grouper, next]);
+                        } else await resolve_hex(victim, [grouper, next]);
                     } else bits.push(`${victim} survives.`);
                     await Promise.all([ m.reactions.removeAll(), m.edit({ content: roleMention(HEX_ROLES.COURT), embeds: [embed.setDescription(bits.join(' ').trim() + '\n')] }) ]);
                 } catch (iex) { LOG.interaction(i, ['error', m, iex]); }
@@ -107,7 +107,7 @@ module HEX {
     export module PRAY {
         export const data   = new SlashCommandBuilder().setName('pray').setDescription('Fight against the curse of the « mark ».');
 
-        export const exec   = async (i: ChatInputCommandInteraction): Promise<LOG.RESULT_BODY> => (async (guild, member) => {
+        export const exec   = (i: ChatInputCommandInteraction): Promise<LOG.RESULT_BODY> => (async (guild, member) => {
             const cm = member.roles.cache.find(({ id }) => HEX_SERIES.includes(id) || id === HEX_ROLES.GHOST);
             if (!cm) return ['error', await i.reply({ fetchReply: true, ephemeral: true, content: 'Action halted; missing role.' }), null];
 
@@ -117,8 +117,8 @@ module HEX {
                     const size = [HEX_ROLES.GHOST, HEX_ROLES.SHADE].includes(cm.id) ? 1 : 5
                     , diehard = cm.id === HEX_ROLES.GHOST && (guild.roles.cache.get(HEX_ROLES.KISMT)?.members.size || 0) > 0 || cm.id === HEX_ROLES.SHADE;
         
-                    const faces = SPREADABLE(cm.id) ? [0, 1, 1, 3, 3, 5] : [1, 2, 3, 4, 5, 6]
-                    , impact = diehard ? [0.75, 1, 1, 1, 1, 1.75] : SPREADABLE(cm.id) ? [1.69, 1, 1, 1, 1, 1] : [1, 1, 1, 1, 1, 1];
+                    const faces = indirect_hex(cm.id) ? [0, 1, 1, 3, 3, 5] : [1, 2, 3, 4, 5, 6]
+                    , impact = diehard ? [0.75, 1, 1, 1, 1, 1.75] : indirect_hex(cm.id) ? [1.69, 1, 1, 1, 1, 1] : [1, 1, 1, 1, 1, 1];
         
                     const basechance = 0.990 / impact.reduce((a, b) => a + b)
                     , distribution = impact.map(n => n * basechance).map((_, ix, ar) => ar.slice(0, ix + 1).reduce((a, b) => a + b));
@@ -149,7 +149,7 @@ module MOD {
         .addUserOption(o    => o.setName('user').setDescription('The user.').setRequired(true))
         .addNumberOption(o  => o.setName('hours').setDescription('The silence period, with decimal precision.').setRequired(true));
 
-        export const exec   = async (i: ChatInputCommandInteraction): Promise<LOG.RESULT_BODY> => (async guild => {
+        export const exec   = (i: ChatInputCommandInteraction): Promise<LOG.RESULT_BODY> => (async guild => {
             const gm    = guild.members.resolve(i.options.getUser('user', true)) || throwexc('Null GuildMember.')
             , hours     = i.options.getNumber('hours', true)
             , unmute    = hours <= 0;
@@ -165,7 +165,7 @@ module MOD {
         .addRoleOption(o    => o.setName('end').setDescription('The role to migrate to.').setRequired(true))
         .addUserOption(o    => o.setName('user').setDescription('A specific user to migrate.'));
 
-        export const exec   = async (i: ChatInputCommandInteraction): Promise<LOG.RESULT_BODY> => (async member => {
+        export const exec   = (i: ChatInputCommandInteraction): Promise<LOG.RESULT_BODY> => (async member => {
             const src = i.options.getRole('src', true) as Role
             , end = i.options.getRole('end', true) as Role;
 
@@ -179,12 +179,33 @@ module MOD {
     }
 }
 
+module GGZ {
+    export module STATUS {
+        export const data   = new SlashCommandBuilder().setName('status')
+        .setDescription('A status window, all about you.');
+
+        export const exec   = (i: ChatInputCommandInteraction): Promise<LOG.RESULT_BODY> => (async ({ id, displayName, displayAvatarURL, roles, joinedAt }) => {
+            //const record = await DB.get_user(id);
+            //if (!record) return ['complete', await i.reply({ fetchReply: true, ephemeral: true, content: 'No records of you can be found.' }), null];
+
+            const embed = new EmbedBuilder()
+            .setImage(displayAvatarURL())
+            .setFooter({ text: `Member since ${joinedAt?.toLocaleString() || 'DATE_ERROR'}` })
+            .addFields({ name: 'Current Experience', value: `${inlineCode(Array(16).fill('◻').join(''))} ${bold('Level 0')}` });
+            (r => embed.setColor(r.color).setAuthor({ name: `${displayName} 【 ${r.name.toUpperCase()} 】` }))(roles.highest);
+
+            return ['complete', await i.reply({ fetchReply: true, ephemeral: true, embeds: [embed] }), null];
+        })(i.member as GuildMember || throwexc('Null GuildMember.'));
+    }
+}
+
 //#region EXPORT DECLARATIONS
-export const DATASET    = [HEX.MARK.data.toJSON(), HEX.PRAY.data.toJSON(), MOD.MUTE.data.toJSON(), MOD.MIGRATE_ROLE.data.toJSON()];
-export const EXECUTE    = async (i: ChatInputCommandInteraction): Promise<LOG.RESULT_BODY> => 
-    i.commandName === 'mark'            ? await HEX.MARK.exec(i)
-    : i.commandName === 'pray'          ? await HEX.PRAY.exec(i)
-    : i.commandName === 'mute'          ? await MOD.MUTE.exec(i)
-    : i.commandName === 'migrate-role'  ? await MOD.MIGRATE_ROLE.exec(i)
-    : throwexc('Command not implemented.');
+export const DATASET    = [HEX.MARK.data.toJSON(), HEX.PRAY.data.toJSON(), MOD.MUTE.data.toJSON(), MOD.MIGRATE_ROLE.data.toJSON(), GGZ.STATUS.data.toJSON()];
+export const EXECUTE    = (i: ChatInputCommandInteraction): Promise<LOG.RESULT_BODY> => (async name =>
+    name === 'mark'             ? await HEX.MARK.exec(i)
+    : name === 'pray'           ? await HEX.PRAY.exec(i)
+    : name === 'mute'           ? await MOD.MUTE.exec(i)
+    : name === 'migrate-role'   ? await MOD.MIGRATE_ROLE.exec(i)
+    : name === 'status'         ? await GGZ.STATUS.exec(i)
+    : throwexc('Command not implemented.'))(i.commandName);
 //#endregion
