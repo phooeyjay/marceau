@@ -41,7 +41,7 @@ export const login = async (presence: PresenceStatusData) => {
     //     CronJob.from({
     //         timeZone: tz
     //         , cronTime: '0 0 1 * * *'
-    //         , onTick: async () => DB.usersync(client)
+    //         , onTick: async () => DB.sync_users(client)
     //     }).start();
     // })(process.env.LOCAL_TZ || throwexc('LOCAL_TZ not found in dotenv.'));
     //#endregion
