@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, Collection, EmbedBuilder, Guild, GuildMember, Role, SlashCommandBuilder, TextChannel, bold, inlineCode, roleMention } from 'discord.js';
-import { throwexc, datetime, rng, defer, LOG, DB } from './utils';
+import { throwexc, datetime, rng, defer, LOG } from './utils';
 declare global { var bCursePend: boolean; var cCooldownCodex: Collection<string, number> }
 
 module HEX {

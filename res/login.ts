@@ -1,6 +1,6 @@
 import { Client, PresenceStatusData, TextChannel, inlineCode } from 'discord.js';
 import { CronJob } from 'cron';
-import { DB, LOG, throwexc } from './utils';
+import { DBXC, LOG, throwexc } from './utils';
 import { DATASET, EXECUTE } from './slash';
 
 export const login = async (presence: PresenceStatusData) => {
@@ -37,13 +37,13 @@ export const login = async (presence: PresenceStatusData) => {
     //#endregion
 
     //#region CRONJOB
-    // (tz => {
-    //     CronJob.from({
-    //         timeZone: tz
-    //         , cronTime: '0 0 1 * * *'
-    //         , onTick: async () => DB.sync_users(client)
-    //     }).start();
-    // })(process.env.LOCAL_TZ || throwexc('LOCAL_TZ not found in dotenv.'));
+    (tz => {
+        CronJob.from({
+            timeZone: tz
+            , cronTime: '0 0 1 * * *'
+            , onTick: async () => await DBXC.sync_users(client)
+        }).start();
+    })(process.env.LOCAL_TZ || throwexc('LOCAL_TZ not found in dotenv.'));
     //#endregion
 
     await client.login(process.env.APP_AUTHTOKEN || throwexc('Token not found in dotenv.'));

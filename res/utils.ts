@@ -73,42 +73,62 @@ export module LOG {
     }
 }
 
-export module DB {
-    type USER_PROFILE   = { guild: string, username: string, accumulated_exp: number, updated: string, inventory: { talents: string[], hex_tokens: number } };
+export module DBXC {
+    type TABLES   = {
+        'USER_PROFILE': { key: { id: string }, username: string, accumulated_exp: number, updated: string },
+        'CONFESSIONAL': { key: { started: string }, active: boolean, hexed: Record<string, number>, ghost: number[] }
+    };
+    type FLATTEN<T>     = { 
+        [K in keyof T]: K extends symbol ? never : K | (T[K] extends object ? T[K] extends Array<any> | Record<string, any> ? K : `${K & string}.${FLATTEN<T[K]>}` : never)  
+    }[keyof T];
 
-    const connect   = () => DynamoDBDocument.from(new DynamoDBClient({ 
+    const use_api       = () => DynamoDBDocument.from(new DynamoDBClient({ 
         apiVersion: process.env.AWS_VERSION!
         , region: process.env.AWS_REGION!
         , credentials: { secretAccessKey: process.env.AWS_SECRET!, accessKeyId: process.env.AWS_AUTHKEY! } 
     }));
 
-    const table     = (name: 'UserProfile' | 'Guillotine' | 'CodeTable') => (connection => {
-        const fetch = async <T extends Record<string, unknown> = {}>(key: Record<string, string | number>) => {
+    const use_table     = <TS extends keyof TABLES>(name: TS) => (api => {
+        type TARGET_SCHEMA  = TABLES[TS];
+        type TARGET_KEY     = Pick<TARGET_SCHEMA, 'key'>['key'];
+        const fetch = async (key: TARGET_KEY) => {
             try {
-                const output = await connection.get({ TableName: name, Key: key, ConsistentRead: true });
-                return <T>(output.Item);
+                const out = (await api.get({ TableName: name, Key: key, ConsistentRead: true })).Item || null;
+                return !out ? null : <TARGET_SCHEMA>(out);
             } catch (ex) { LOG.text(ex); return null; }
         }
-        , amend = async <T extends Record<string, unknown> = {}>(key: Record<string, string | number>, mapper: (o: T) => void) => {
+        , amend = async (key: TARGET_KEY, mapper: (o: Omit<TARGET_SCHEMA, 'key'>) => void) => {
             try {
-                const res = await fetch<T>(key) || <T>{};
+                const res = <TARGET_SCHEMA>(await fetch(key) || {});
                 mapper(res);
-                const output = await connection.put({ TableName: name, Item: res, ReturnValues: 'UPDATED_NEW' });
-                return output.Attributes !== undefined;
+                return (await api.put({ TableName: name, Item: res, ReturnValues: 'UPDATED_NEW' })).Attributes !== undefined;
             } catch (ex) { LOG.text(ex); return false; }
         }
-        return { fetch, amend };
-    })(connect());
+        , where = async (path: FLATTEN<Omit<TARGET_SCHEMA, 'key'>>, operand: 'EQ' | 'NOT' | 'GT' | 'GTE' | 'LT' | 'LTE', value: unknown) => {
+            try {
+                const filter = (opn => `${path} ${opn} ${typeof value === 'string' ? `'${value}'` : value}`)((
+                <Record<typeof operand, string>>{
+                    'EQ'    : '='
+                    , 'NOT' : '<>' 
+                    , 'GT'  : '>'
+                    , 'GTE' : '>='
+                    , 'LT'  : '<'
+                    , 'LTE' : '<='
+                })[operand]);
+                const out = (await api.query({ TableName: name, FilterExpression: filter, ConsistentRead: true })).Items;
+                return !out ? null : out.map(r => <TARGET_SCHEMA>(r));
+            } catch (ex) { LOG.text(ex); return null; }
+        }
+        return { fetch, amend, where };
+    })(use_api());
 
-    export const get_user   = async (uid: string) => await table('UserProfile').fetch<USER_PROFILE>({ id: uid });
-
+    export const get_user   = async (uid: string) => await use_table('USER_PROFILE').fetch({ id: uid });
     export const sync_users = async (client: Client) => {
         try {
             LOG.text('SYNC_USERS ▸ Begin.');
-            const { members } = await client.guilds.fetch(process.env.APP_GUILD || throwexc('Null Guild ID.')), tb = table('UserProfile');
-            for (const [id, { guild, user }] of members.cache.filter(m => m.roles.cache.has(process.env.VERIFIED_USER || throwexc('Null Verified User Grouping.')))) {
-                await tb.amend<USER_PROFILE>({ id: id }, u => {
-                    u.guild     = guild.id;
+            const { members } = await client.guilds.fetch(process.env.APP_GUILD || throwexc('Null Guild ID.')), t = use_table('USER_PROFILE');
+            for (const [id, { user }] of members.cache.filter(m => m.roles.cache.has(process.env.VERIFIED_USER || throwexc('Null Verified User Grouping.')))) {
+                await t.amend({ id: id }, u => {
                     u.username  = user.username;
                     u.updated   = datetime();
                 });
