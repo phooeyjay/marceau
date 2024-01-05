@@ -1,3 +1,3 @@
 (async () => {
-    (await import('./res/login')).login(process.env.DEBUG && 'invisible' || 'online');
+    (await import('./res/login')).login(process.env.DEBUG_MODE === 'true' && 'invisible' || 'online');
 })();

@@ -21,7 +21,7 @@ export const stringify = (a: unknown): string => a ? (
  * - Else, use the `discordjs.time` function for formatting.
  */
 export const datetime = (offset?: number, format?: 'F' | 'R' | 'T'): string => (dt => {
-    return !format ? dt.toLocaleString('en-GB', { timeZone: process.env.GMT8_TZ, timeZoneName: 'shortOffset' }) : time(Math.trunc(dt.getTime() / 1_000), format)
+    return !format ? dt.toLocaleString('en-GB', { timeZone: process.env.LOCAL_TZ!, timeZoneName: 'shortOffset' }) : time(Math.trunc(dt.getTime() / 1_000), format)
 })(new Date(new Date().getTime() + (offset || 0)));
 
 /** Given a sample size, randomly generate values normalized into the range of 0 (inclusize) ~ 1 (exclusive). */
@@ -35,7 +35,7 @@ export const defer = async (i: ChatInputCommandInteraction) => await i.reply({ e
 //#endregion
 
 export module LOG {
-    const WEBHOOK = new WebhookClient({ url: `https://discord.com/api/webhooks/${process.env.API_URL}` });
+    const WEBHOOK = new WebhookClient({ url: `https://discord.com/api/webhooks/${process.env.APP_LOGGER_URL}` });
     export type RESULT_BODY = [status: 'complete' | 'ongoing' | 'error', response: Message | null, error: Error | null];
 
     /** Performs a `console.log`. */
@@ -77,9 +77,9 @@ export module DB {
     type USER_PROFILE   = { guild: string, username: string, accumulated_exp: number, updated: string, inventory: { talents: string[], hex_tokens: number } };
 
     const connect   = () => DynamoDBDocument.from(new DynamoDBClient({ 
-        apiVersion: process.env.APIVER!
-        , region: process.env.REGION!
-        , credentials: { secretAccessKey: process.env.SECRET!, accessKeyId: process.env.ACCKEY! } 
+        apiVersion: process.env.AWS_VERSION!
+        , region: process.env.AWS_REGION!
+        , credentials: { secretAccessKey: process.env.AWS_SECRET!, accessKeyId: process.env.AWS_AUTHKEY! } 
     }));
 
     const table     = (name: 'UserProfile' | 'Guillotine' | 'CodeTable') => (connection => {
@@ -105,8 +105,8 @@ export module DB {
     export const sync_users = async (client: Client) => {
         try {
             LOG.text('SYNC_USERS ▸ Begin.');
-            const { members } = await client.guilds.fetch(process.env.GUILDID || throwexc('Null GUILDID.')), tb = table('UserProfile');
-            for (const [id, { guild, user }] of members.cache.filter(m => m.roles.cache.has(process.env.VERIFIED_GROUPID || throwexc('Null VERIFIED_GROUPID.')))) {
+            const { members } = await client.guilds.fetch(process.env.APP_GUILD || throwexc('Null Guild ID.')), tb = table('UserProfile');
+            for (const [id, { guild, user }] of members.cache.filter(m => m.roles.cache.has(process.env.VERIFIED_USER || throwexc('Null Verified User Grouping.')))) {
                 await tb.amend<USER_PROFILE>({ id: id }, u => {
                     u.guild     = guild.id;
                     u.username  = user.username;

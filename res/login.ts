@@ -13,7 +13,7 @@ export const login = async (presence: PresenceStatusData) => {
     //#region EVENT LISTENERS
     client.once('ready', async sys => {
         try {
-            await sys.rest.put(`/applications/${process.env.APPID!}/commands`, { body: DATASET });
+            await sys.rest.put(`/applications/${process.env.APP_IDENTIFIER}/commands`, { body: DATASET });
             LOG.cmdl(`READY: ${sys.user.username}`);
         } catch (ex) { LOG.cmdl(ex); await logout(); }
     });
@@ -46,5 +46,5 @@ export const login = async (presence: PresenceStatusData) => {
     // })(process.env.LOCAL_TZ || throwexc('LOCAL_TZ not found in dotenv.'));
     //#endregion
 
-    await client.login(process.env.TOKEN || throwexc('Token not found in dotenv.'));
+    await client.login(process.env.APP_AUTHTOKEN || throwexc('Token not found in dotenv.'));
 };
