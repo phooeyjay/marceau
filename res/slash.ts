@@ -28,6 +28,11 @@ module HEX {
         .addUserOption(o    => o.setName('user').setDescription('The user.').setRequired(true))
         .addStringOption(o  => o.setName('why').setDescription('A reason, if any, for this action.'));
 
+        const next_state    = (state: Role | undefined, states: Collection<string, Role>) => {
+            if (!state) return states.get(HEX_ROLES.DEATH); // initial state
+            return state.id === HEX_ROLES.SCARL && (states.get(HEX_ROLES.KISMT)?.members.size || 0) >= 2 ? states.get(HEX_ROLES.SHADE) : states.get(HEX_SERIES[HEX_SERIES.indexOf(state.id) + 1]); // remaining states
+        };
+
         const make_embed    = (state: Role, who: GuildMember, why: string | null) => {
             const _ = new EmbedBuilder()
             .setColor(state.color)
@@ -56,7 +61,7 @@ module HEX {
             if (curr?.id === HEX_ROLES.SHADE) return ['complete', await i.reply({ fetchReply: true, ephemeral: true, content: `${victim} is on the final cursemark.` }), null];
 
             const roles = await guild.roles.fetch()
-            , next = roles.get(HEX_SERIES[curr?.id ? Math.min(HEX_SERIES.length - 1, HEX_SERIES.indexOf(curr.id) + 1): 0]) || throwexc('Null next tier.');
+            , next = next_state(curr, roles.filter(({ id }) => HEX_SERIES.includes(id))) || throwexc('Null next tier.');
 
             const embed = make_embed(next, victim, i.options.getString('reason'));
             
