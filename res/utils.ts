@@ -94,12 +94,12 @@ export module DBXC {
         const fetch = async (key: TARGET_KEY) => {
             try {
                 const out = (await api.get({ TableName: name, Key: key, ConsistentRead: true })).Item || null;
-                return !out ? null : <TARGET_SCHEMA>(out);
+                return !out ? null : out as TARGET_SCHEMA;
             } catch (ex) { LOG.text(ex); return null; }
         }
         , amend = async (key: TARGET_KEY, mapper: (o: Omit<TARGET_SCHEMA, 'key'>) => void) => {
             try {
-                const res = <TARGET_SCHEMA>(await fetch(key) || {});
+                const res = (await fetch(key) || {}) as TARGET_SCHEMA;
                 mapper(res);
                 return (await api.put({ TableName: name, Item: res, ReturnValues: 'UPDATED_NEW' })).Attributes !== undefined;
             } catch (ex) { LOG.text(ex); return false; }
@@ -116,7 +116,7 @@ export module DBXC {
                     , 'LTE' : '<='
                 })[operand]);
                 const out = (await api.query({ TableName: name, FilterExpression: filter, ConsistentRead: true })).Items;
-                return !out ? null : out.map(r => <TARGET_SCHEMA>(r));
+                return !out ? null : out.map(r => r as TARGET_SCHEMA);
             } catch (ex) { LOG.text(ex); return null; }
         }
         return { fetch, amend, where };
@@ -136,4 +136,7 @@ export module DBXC {
             LOG.text('SYNC_USERS ▸ End.');
         } catch (ex) { LOG.text(ex); }
     }
+
+    export const find_active_trial  = async () => await use_table('CONFESSIONAL').where('active', 'EQ', true);
+    export const begin_trial        = use_table('CONFESSIONAL').amend;
 }
