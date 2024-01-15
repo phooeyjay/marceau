@@ -137,6 +137,6 @@ export module DBXC {
         } catch (ex) { LOG.text(ex); }
     }
 
-    export const find_active_trial  = async () => await use_table('CONFESSIONAL').where('active', 'EQ', true);
-    export const begin_trial        = use_table('CONFESSIONAL').amend;
+    // export const find_active_trial  = async () => await use_table('CONFESSIONAL').where('active', 'EQ', true);
+    // export const begin_trial        = use_table('CONFESSIONAL').amend;
 }

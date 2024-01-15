@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, Collection, EmbedBuilder, GuildMember, Role, SlashCommandBuilder, TextChannel, bold, inlineCode, roleMention } from 'discord.js';
 import { throwexc, datetime, rng, defer, LOG, DBXC } from './utils';
-declare global { var bCursePend: boolean; var cCooldownCodex: Collection<string, number>; var bHexDisabled: boolean; }
+declare global { var bCursePend: boolean; var cCooldownCodex: Collection<string, number>; /*var bHexDisabled: boolean;*/ }
 
 module HEX {
     const HEX_TFRAME_MS = 120_000 // 2 minutes
@@ -138,34 +138,34 @@ module HEX {
         })(i.guild || throwexc('Null guild.'), i.member as GuildMember || throwexc('Null user.'));
     }
 
-    export module TRIAL {
-        export const data   = new SlashCommandBuilder().setName('court').setDescription('Managerial procedures for the courtroom.')
-        .addSubcommand(c => c.setName('begin').setDescription('Initiate a session.'))
-        .addSubcommand(c => c.setName('end').setDescription('End an active session.'));
+    // export module TRIAL {
+    //     export const data   = new SlashCommandBuilder().setName('court').setDescription('Managerial procedures for the courtroom.')
+    //     .addSubcommand(c => c.setName('begin').setDescription('Initiate a session.'))
+    //     .addSubcommand(c => c.setName('end').setDescription('End an active session.'));
 
-        export const exec   = (i: ChatInputCommandInteraction): Promise<LOG.RESULT_BODY> => (async (guild, sub) => {
-            if (sub === 'begin') {
-                const hexed = guild.roles.cache.get(HEX_ROLES.MARKD)?.members.map(m => m) || throwexc('Null guild role CURSEMARKED.');
-                if (hexed.length < 1) return ['complete', await i.reply({ fetchReply: true, ephemeral: true, content: 'A trial may not start when there are no Marked.' }), null];
+    //     export const exec   = (i: ChatInputCommandInteraction): Promise<LOG.RESULT_BODY> => (async (guild, sub) => {
+    //         if (sub === 'begin') {
+    //             const hexed = guild.roles.cache.get(HEX_ROLES.MARKD)?.members.map(m => m) || throwexc('Null guild role CURSEMARKED.');
+    //             if (hexed.length < 1) return ['complete', await i.reply({ fetchReply: true, ephemeral: true, content: 'A trial may not start when there are no Marked.' }), null];
 
-                if (!global.bHexDisabled || DBXC.find_active_trial() !== null) {
-                    global.bHexDisabled = true;
-                    return ['complete', await i.reply({ fetchReply: true, ephemeral: true, content: 'A trial is already in session.' }), null];
-                }
+    //             if (!global.bHexDisabled || DBXC.find_active_trial() !== null) {
+    //                 global.bHexDisabled = true;
+    //                 return ['complete', await i.reply({ fetchReply: true, ephemeral: true, content: 'A trial is already in session.' }), null];
+    //             }
 
-                DBXC.begin_trial({ started: datetime() }, o => {
-                    o.active    = true;
-                    o.ghost     = rng(5);
-                    hexed.forEach(({ id }) => o.hexed[id] = 0);
-                });
-                return ['complete', await i.reply({ fetchReply: true, content: `${roleMention(HEX_ROLES.COURT)} ${roleMention(HEX_ROLES.MARKD)} The time has come to pray.` }), null];
-            }
-            // else if (sub === 'end') {
+    //             DBXC.begin_trial({ started: datetime() }, o => {
+    //                 o.active    = true;
+    //                 o.ghost     = rng(5);
+    //                 hexed.forEach(({ id }) => o.hexed[id] = 0);
+    //             });
+    //             return ['complete', await i.reply({ fetchReply: true, content: `${roleMention(HEX_ROLES.COURT)} ${roleMention(HEX_ROLES.MARKD)} The time has come to pray.` }), null];
+    //         }
+    //         // else if (sub === 'end') {
 
-            // }
-            else return ['error', await i.reply({ fetchReply: true, ephemeral: true, content: `The task '${sub}' is not assigned.` }), null];
-        })(i.guild || throwexc('Null guild.'), i.options.getSubcommand(true) as 'begin' | 'end');
-    }
+    //         // }
+    //         else return ['error', await i.reply({ fetchReply: true, ephemeral: true, content: `The task '${sub}' is not assigned.` }), null];
+    //     })(i.guild || throwexc('Null guild.'), i.options.getSubcommand(true) as 'begin' | 'end');
+    // }
 }
 
 module MOD {
