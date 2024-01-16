@@ -1,6 +1,13 @@
 import { ChatInputCommandInteraction, Collection, EmbedBuilder, GuildMember, Role, SlashCommandBuilder, TextChannel, bold, inlineCode, roleMention } from 'discord.js';
-import { throwexc, datetime, rng, defer, LOG, DBXC } from './utils';
-declare global { var bCursePend: boolean; var cCooldownCodex: Collection<string, number>; /*var bHexDisabled: boolean;*/ }
+import { throwexc, datetime, rng, defer, LOG } from './utils';
+
+//#region GLOBAL VARIABLES DECLARATION AND INITIALIZATION
+declare global { 
+    var bCursePend:     boolean;
+    // var bHexDisabled:   boolean;
+}
+global.bCursePend       = global.bCursePend     || false;
+//#endregion
 
 module HEX {
     const HEX_TFRAME_MS = 120_000 // 2 minutes
@@ -33,10 +40,9 @@ module HEX {
             return why ? _.addFields({ name: 'Cause of Affliction', value: why }) : _;
         };
 
-        const resolve_hex   = async ({ roles, id }: GuildMember, set: Role[]) => {
+        const resolve_hex   = async ({ roles }: GuildMember, set: Role[]) => {
             await roles.remove(HEX_SERIES);
             await roles.add(set, 'Afflicted by /mark.');
-            global.cCooldownCodex.set(id, Date.now());
         };
 
         export const exec   = (i: ChatInputCommandInteraction): Promise<LOG.RESULT_BODY> => (async guild => {
@@ -44,10 +50,6 @@ module HEX {
     
             const victim = guild.members.resolve(i.options.getUser('user', true)) || throwexc('Null user.');
             if (victim.user.bot) return ['complete', await i.reply({ fetchReply: true, content: 'Cursing a bot is not allowed.' }), null];
-            else {
-                const last = global.cCooldownCodex.get(victim.id);
-                if (last && (last + HEX_TFRAME_MS) < Date.now()) return ['complete', await i.reply({ fetchReply: true, ephemeral: true, content: `No marking the same person within ${bold('2 minutes')} of the last result.` }), null];
-            }
 
             const curr = victim.roles.cache.find(({ id }) => HEX_SERIES.includes(id));
             if (curr?.id === HEX_ROLES.SHADE) return ['complete', await i.reply({ fetchReply: true, ephemeral: true, content: `${victim} is on the final cursemark.` }), null];
@@ -91,7 +93,10 @@ module HEX {
                         } else await resolve_hex(victim, [grouper, next]);
                     } else bits.push(`${victim} survives.`);
                     await Promise.all([ m.reactions.removeAll(), m.edit({ content: roleMention(HEX_ROLES.COURT), embeds: [embed.setDescription(bits.join(' ').trim() + '\n')] }) ]);
-                } catch (iex) { LOG.interaction(i, ['error', m, iex]); }
+                } catch (iex) { 
+                    LOG.interaction(i, ['error', m, iex]);
+                    await m.delete();
+                }
             });
             //#endregion
         
@@ -236,15 +241,15 @@ module GGZ {
         export const data   = new SlashCommandBuilder().setName('status')
         .setDescription('A status window, all about you.');
 
-        export const exec   = (i: ChatInputCommandInteraction): Promise<LOG.RESULT_BODY> => (async ({ id, displayName, displayAvatarURL, roles, joinedAt }) => {
+        export const exec   = (i: ChatInputCommandInteraction): Promise<LOG.RESULT_BODY> => (async gm => {
             //const record = await DB.get_user(id);
             //if (!record) return ['complete', await i.reply({ fetchReply: true, ephemeral: true, content: 'No records of you can be found.' }), null];
 
             const embed = new EmbedBuilder()
-            .setImage(displayAvatarURL())
-            .setFooter({ text: `Member since ${joinedAt?.toLocaleString() || 'DATE_ERROR'}` })
+            .setThumbnail(gm.displayAvatarURL())
+            .setFooter({ text: `Member since ${gm.joinedAt?.toLocaleString() || 'DATE_ERROR'}` })
             .addFields({ name: 'Current Experience', value: `${inlineCode(Array(16).fill('◻').join(''))} ${bold('Level 0')}` });
-            (r => embed.setColor(r.color).setAuthor({ name: `${displayName} 【 ${r.name.toUpperCase()} 】` }))(roles.highest);
+            (r => embed.setColor(r.color).setAuthor({ name: `${gm.displayName} 【 ${r.name.toUpperCase()} 】` }))(gm.roles.highest);
 
             return ['complete', await i.reply({ fetchReply: true, ephemeral: true, embeds: [embed] }), null];
         })(i.member as GuildMember || throwexc('Null GuildMember.'));
@@ -252,14 +257,7 @@ module GGZ {
 }
 
 //#region EXPORT DECLARATIONS
-export const DATASET    = [
-    HEX.MARK.data.toJSON()
-    , HEX.PRAY.data.toJSON()
-    , MOD.MUTE.data.toJSON()
-    , MOD.MIGRATE_ROLE.data.toJSON()
-    , MOD.MODIFY_GLOBALS.data.toJSON()
-    , GGZ.STATUS.data.toJSON()
-];
+export const DATASET    = [HEX.MARK.data, HEX.PRAY.data, MOD.MUTE.data, MOD.MIGRATE_ROLE.data, MOD.MODIFY_GLOBALS.data, GGZ.STATUS.data].map(d => d.toJSON());
 export const EXECUTE    = (i: ChatInputCommandInteraction): Promise<LOG.RESULT_BODY> => (async name =>
     name === 'mark'             ? await HEX.MARK.exec(i)
     : name === 'pray'           ? await HEX.PRAY.exec(i)

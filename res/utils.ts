@@ -31,7 +31,7 @@ export const rng = ((sz?: number) => Array.from(webcrypto.getRandomValues(new Ui
 export const throwexc = (ex: string | Error) => { throw ex instanceof Error ? ex : new Error(ex) };
 
 /** Less-breaking version of `ChatInputCommandInteraction.deferReply` */
-export const defer = async (i: ChatInputCommandInteraction) => await i.reply({ ephemeral: true, fetchReply: true, content: '⏳' });
+export const defer = async (i: ChatInputCommandInteraction) => await i.reply({ ephemeral: true, fetchReply: true, content: `${inlineCode('Please wait...')} ⏳` });
 //#endregion
 
 export module LOG {
@@ -57,7 +57,7 @@ export module LOG {
         (async (failed, now) => {
             try {
                 const description = [
-                    now
+                    inlineCode(now)
                     , '\u00A0\u00A0'
                     , inlineCode(status)
                     , inlineCode(user.username)
