@@ -1,3 +1,4 @@
+import { getenv } from './res/utils';
 (async () => {
-    (await import('./res/login')).login(process.env.DEBUG_MODE === 'true' && 'invisible' || 'online');
+    (await import('./res/login')).login(getenv('DEBUG_MODE') === 'true' && 'invisible' || 'online');
 })();

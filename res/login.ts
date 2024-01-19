@@ -1,6 +1,6 @@
 import { Client, PresenceStatusData, TextChannel, inlineCode } from 'discord.js';
 import { CronJob } from 'cron';
-import { DBXC, LOG, throwexc } from './utils';
+import { DBXC, LOG, throwexc, getenv } from './utils';
 import { DATASET, EXECUTE } from './slash';
 
 export const login = async (presence: PresenceStatusData) => {
@@ -13,7 +13,7 @@ export const login = async (presence: PresenceStatusData) => {
     //#region EVENT LISTENERS
     client.once('ready', async sys => {
         try {
-            await sys.rest.put(`/applications/${process.env.APP_IDENTIFIER}/commands`, { body: DATASET });
+            await sys.rest.put(`/applications/${getenv('APP_IDENTIFIER')}/commands`, { body: DATASET });
             LOG.cmdl(`READY: ${sys.user.username}`);
         } catch (ex) { LOG.cmdl(ex); await logout(); }
     });
@@ -27,7 +27,7 @@ export const login = async (presence: PresenceStatusData) => {
                         await i.deleteReply();
                         return await (i.channel as TextChannel).send(apology);
                     } else return await i.reply({ fetchReply: true, content: apology });
-                })(process.env.GENERIC_ERROR || '🙇‍♂️');
+                })(getenv('GENERIC_ERROR', '🙇‍♂️'));
                 LOG.interaction(i, ['error', response, ex]);
             }
         }
@@ -43,8 +43,8 @@ export const login = async (presence: PresenceStatusData) => {
             , cronTime: '0 0 1 * * *'
             , onTick: async () => await DBXC.sync_users(client)
         }).start();
-    })(process.env.LOCAL_TZ || throwexc('LOCAL_TZ not found in dotenv.'));
+    })(getenv('LOCAL_TZ', 'UTC'));
     //#endregion
 
-    await client.login(process.env.APP_AUTHTOKEN || throwexc('Token not found in dotenv.'));
+    await client.login(getenv('APP_AUTHTOKEN', false));
 };

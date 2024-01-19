@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, Collection, EmbedBuilder, GuildMember, Role, SlashCommandBuilder, TextChannel, bold, inlineCode, roleMention } from 'discord.js';
-import { throwexc, datetime, rng, defer, LOG } from './utils';
+import { throwexc, datetime, rng, defer, LOG, getenv } from './utils';
 
 //#region GLOBAL VARIABLES DECLARATION AND INITIALIZATION
 declare global { 
@@ -16,7 +16,7 @@ module HEX {
         if (!str) return {};
         const [court, marked, ghost, t1, t2, t3, t4] = str.split(',');
         return { COURT: court, MARKD: marked, GHOST: ghost, DEATH: t1, SCARL: t2, KISMT: t3, SHADE: t4 };
-    })(process.env.HEX_ROLES) as { COURT: string | '', MARKD: string | '', GHOST: string | '', DEATH: string | '', SCARL: string | '', KISMT: string | '', SHADE: string | '' }
+    })(getenv('HEX_ROLES')) as { COURT: string | '', MARKD: string | '', GHOST: string | '', DEATH: string | '', SCARL: string | '', KISMT: string | '', SHADE: string | '' }
     , HEX_SERIES        = [HEX_ROLES.DEATH, HEX_ROLES.SCARL, HEX_ROLES.KISMT, HEX_ROLES.SHADE];
 
     const indirect_hex  = (r: string) => HEX_SERIES.slice(1, -1).includes(r);
