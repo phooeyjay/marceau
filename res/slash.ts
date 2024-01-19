@@ -57,7 +57,7 @@ module HEX {
             const roles = await guild.roles.fetch()
             , next = next_state(curr, roles.filter(({ id }) => HEX_SERIES.includes(id))) || throwexc('Null next tier.');
 
-            const embed = make_embed(next, victim, i.options.getString('reason'));
+            const embed = make_embed(next, victim, i.options.getString('why'));
             
             await defer(i);
             const m = await (i.channel as TextChannel).send({ 

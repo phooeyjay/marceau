@@ -40,7 +40,7 @@ export const login = async (presence: PresenceStatusData) => {
     (tz => {
         CronJob.from({
             timeZone: tz
-            , cronTime: '0 0 1 * * *'
+            , cronTime: '0 0 2 * * *'
             , onTick: async () => await DBXC.sync_users(client)
         }).start();
     })(getenv('LOCAL_TZ', 'UTC'));

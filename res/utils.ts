@@ -132,7 +132,7 @@ export module DBXC {
     export const sync_users = async (client: Client) => {
         try {
             LOG.text('SYNC_USERS ▸ Begin.');
-            const guildenv = getenv('APP_GUILD', throwexc('Null Guild ID.')), verenv = getenv('VERIFIED_USER', throwexc('Null Verified User Grouping.'));
+            const guildenv = getenv('APP_GUILD', false), verenv = getenv('VERIFIED_USER', false);
             const { members } = await client.guilds.fetch(guildenv), t = using('USER_PROFILE');
             for (const [id, { user }] of members.cache.filter(m => m.roles.cache.has(verenv))) {
                 await t.amend({ id: id }
