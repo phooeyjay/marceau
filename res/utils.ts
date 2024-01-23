@@ -87,62 +87,37 @@ export module DBXC {
         , credentials: { secretAccessKey: getenv('AWS_SECRET', false), accessKeyId: getenv('AWS_AUTHKEY', false) } 
     }));
 
-    const protect   = (value: unknown) => typeof value === 'string' ? `'${value}'` : value;
-
     const using     = <T extends keyof T_SCHEMA>(table: T) => (api => {
         type TARGET_T   = T_SCHEMA[T];
         type T_P_KEY    = TARGET_T['KEY'];
         type T_ATTRS    = Omit<TARGET_T, 'KEY'>;
 
         const fetch = async (key: T_P_KEY) => {
-            try {
-                const response = await api.get({ TableName: table, Key: key, ConsistentRead: true });
-                return (response.Item || {}) as T_ATTRS;
-            } catch (ex) { LOG.text(ex); return null; }
-        }
-        , amend     = async <P extends keyof T_ATTRS & string>(key: T_P_KEY, ...expr: (
-            ['SET', P, string | number] 
-            | ['ADD', P, number | Array<string> | Array<number>] 
-            | ['DELETE', P, Array<string> | Array<number>])[]) => {
-            try {
-                const update = expr.map(([o, a, v]) => o === 'SET' ? `${o} ${a} = ${protect(v)}` : `${o} ${a} ${v}`).join(', ');
-                const response = await api.update({ TableName: table, Key: key, UpdateExpression: update, ReturnValues: 'UPDATED_NEW' });
-                return Object.keys(response.Attributes || {}).length > 0;
-            } catch (ex) { LOG.text(ex); return false; }
+            const response = await api.get({ TableName: table, Key: key, ConsistentRead: true });
+            return (response.Item || {}) as T_ATTRS;
         }
         , where     = async (path: keyof T_ATTRS & string, operand: 'EQ' | 'NOT' | 'GT' | 'GTE' | 'LT' | 'LTE', value: unknown) => {
-            try {
-                const filter = (opn => `${path} ${opn} ${protect(value)}`)((
-                {
-                    'EQ'    : '='
-                    , 'NOT' : '<>' 
-                    , 'GT'  : '>'
-                    , 'GTE' : '>='
-                    , 'LT'  : '<'
-                    , 'LTE' : '<='
-                } as Record<typeof operand, string>)[operand]);
-                const response = await api.query({ TableName: table, FilterExpression: filter, ConsistentRead: true });
-                return response.Items ? response.Items.map(r => r as T_ATTRS) : null;
-            } catch (ex) { LOG.text(ex); return null; }
+            const filter = (opn => `${path} ${opn} ${JSON.stringify(value)}`)((
+            {
+                'EQ'    : '='
+                , 'NOT' : '<>' 
+                , 'GT'  : '>'
+                , 'GTE' : '>='
+                , 'LT'  : '<'
+                , 'LTE' : '<='
+            } as Record<typeof operand, string>)[operand]);
+            const response = await api.query({ TableName: table, FilterExpression: filter, ConsistentRead: true });
+            return response.Items ? response.Items.map(r => r as T_ATTRS) : null;
         }
-        return { fetch, amend, where };
+        , amend    = async <T extends string | number | boolean | object>(key: T_P_KEY, op: 'SET' | 'ADD' | 'DELETE', ...kv: Array<[keyof T_ATTRS & string, T]>) => {
+            const stmt = `${op} ` + kv.map(([path, val]) => path + (op === 'SET' ? ' = ' : ' ') + JSON.stringify(val));
+            const response = await api.update({ TableName: table, Key: key, UpdateExpression: stmt, ReturnValues: 'UPDATED_NEW' });
+            return Object.keys(response.Attributes || {}).length > 0;
+        };
+        return { fetch, where, amend };
     })(connect());
 
     export const get_user   = async (uid: string) => await using('USER_PROFILE').fetch({ id: uid });
-    export const sync_users = async (client: Client) => {
-        try {
-            LOG.text('SYNC_USERS ▸ Begin.');
-            const guildenv = getenv('APP_GUILD', false), verenv = getenv('VERIFIED_USER', false);
-            const { members } = await client.guilds.fetch(guildenv), t = using('USER_PROFILE');
-            for (const [id, { user }] of members.cache.filter(m => m.roles.cache.has(verenv))) {
-                await t.amend({ id: id }
-                    , ['SET', 'username', user.username]
-                    , ['SET', 'updated', datetime()]);
-            }
-            LOG.text('SYNC_USERS ▸ End.');
-        } catch (ex) { LOG.text(ex); }
-        await new Promise(f => setTimeout(f, 1000)); // deliberate task delay.
-    }
 
     // export const find_active_trial  = async () => await use_table('CONFESSIONAL').where('active', 'EQ', true);
     // export const begin_trial        = use_table('CONFESSIONAL').amend;

@@ -36,15 +36,5 @@ export const login = async (presence: PresenceStatusData) => {
     ['SIGINT', 'SIGTERM'].forEach(sig => process.on(sig, async () => { LOG.cmdl('EXIT.'); await logout(); }));
     //#endregion
 
-    //#region CRONJOB
-    (tz => {
-        CronJob.from({
-            timeZone: tz
-            , cronTime: '0 0 2 * * *'
-            , onTick: async () => await DBXC.sync_users(client)
-        }).start();
-    })(getenv('LOCAL_TZ', 'UTC'));
-    //#endregion
-
     await client.login(getenv('APP_AUTHTOKEN', false));
 };
