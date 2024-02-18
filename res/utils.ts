@@ -11,7 +11,7 @@ import { DynamoDBDocument } from '@aws-sdk/lib-dynamodb';
  * - Else, the value will be forcibly converted into a string by concatenating an empty string. 
  */
 export const stringify  = (a: unknown): string => a ? (
-    a instanceof Error ? (a.stack || 'NO_STACK').split('\n').slice(0, 2).map(s => s.trim()).join(' ') : typeof a === 'object' ? JSON.stringify(a, k => stringify(a[k])) : `${a}`
+    a instanceof Error ? (a.stack || 'NO_STACK').split('\n').map(s => s.trim()).join(' ') : typeof a === 'object' ? JSON.stringify(a, k => stringify(a[k])) : `${a}`
 ) : '';
 
 /**
@@ -76,28 +76,19 @@ export module LOG {
 }
 
 export module DBXC {
-    type T_SCHEMA   = {
-        'USER_PROFILE': { KEY: { id: string }, username: string, collected_exp: number, updated: string }, 
-        'CONFESSIONAL': { KEY: { started: string }, active: boolean, hexed: Record<string, number>, ghost: number[] }
-    };
-
-    const connect   = () => DynamoDBDocument.from(new DynamoDBClient({ 
+    const get_api   = () => DynamoDBDocument.from(new DynamoDBClient({ 
         apiVersion: getenv('AWS_VERSION', false)
         , region: getenv('AWS_REGION', false)
         , credentials: { secretAccessKey: getenv('AWS_SECRET', false), accessKeyId: getenv('AWS_AUTHKEY', false) } 
     }));
 
-    const using     = <T extends keyof T_SCHEMA>(table: T) => (api => {
-        type TARGET_T   = T_SCHEMA[T];
-        type T_P_KEY    = TARGET_T['KEY'];
-        type T_ATTRS    = Omit<TARGET_T, 'KEY'>;
-
-        const fetch = async (key: T_P_KEY) => {
-            const response = await api.get({ TableName: table, Key: key, ConsistentRead: true });
-            return (response.Item || {}) as T_ATTRS;
-        }
-        , where     = async (path: keyof T_ATTRS & string, operand: 'EQ' | 'NOT' | 'GT' | 'GTE' | 'LT' | 'LTE', value: unknown) => {
-            const filter = (opn => `${path} ${opn} ${JSON.stringify(value)}`)((
+    //#region BLUEPRINT METHODS
+    const fetch = async <R extends Record<string, unknown> = never>(from: string, key: Record<string, string | number>) => {
+        const response = await get_api().get({ TableName: from, Key: key, ConsistentRead: true });
+        return response.Item ? response.Item as R : null;
+    };
+    const where = async <R extends Record<string, unknown> = never>(from: string, op: 'EQ' | 'NOT' | 'GT' | 'GTE' | 'LT' | 'LTE', path: string, value: unknown) => {
+        const filter = (opn => `${path} ${opn} ${JSON.stringify(value)}`)((
             {
                 'EQ'    : '='
                 , 'NOT' : '<>' 
@@ -105,20 +96,21 @@ export module DBXC {
                 , 'GTE' : '>='
                 , 'LT'  : '<'
                 , 'LTE' : '<='
-            } as Record<typeof operand, string>)[operand]);
-            const response = await api.query({ TableName: table, FilterExpression: filter, ConsistentRead: true });
-            return response.Items ? response.Items.map(r => r as T_ATTRS) : null;
-        }
-        , amend    = async <T extends string | number | boolean | object>(key: T_P_KEY, op: 'SET' | 'ADD' | 'DELETE', ...kv: Array<[keyof T_ATTRS & string, T]>) => {
-            const stmt = `${op} ` + kv.map(([path, val]) => path + (op === 'SET' ? ' = ' : ' ') + JSON.stringify(val));
-            const response = await api.update({ TableName: table, Key: key, UpdateExpression: stmt, ReturnValues: 'UPDATED_NEW' });
-            return Object.keys(response.Attributes || {}).length > 0;
-        };
-        return { fetch, where, amend };
-    })(connect());
+            } as Record<typeof op, string>)[op]);
+            const response = await get_api().query({ TableName: from, FilterExpression: filter, ConsistentRead: true });
+            return response.Items ? response.Items.map(r => r as R) : null;
+    };
+    const amend = async <T extends string = never>(from: T, key: Record<string, string | number>, op: 'SET' | 'ADD' | 'DELETE', ...kv: Array<[string, string | number | boolean | object]>) => {
+        const stmt = `${op} ` + kv.map(([k, v]) => k + (op === 'SET' ? ' = ' : ' ') + JSON.stringify(v));
+        const response = await get_api().update({ TableName: from, Key: key, UpdateExpression: stmt, ReturnValues: 'UPDATED_NEW' });
+        return response.Attributes && Object.keys(response.Attributes).length > 0;
+    };
+    //#endregion
 
-    export const get_user   = async (uid: string) => await using('USER_PROFILE').fetch({ id: uid });
+    export module USERS {
+        type S  = { PK: { id: string }, username: string, exp: number };
+        const N = 'USER_PROFILE';
 
-    // export const find_active_trial  = async () => await use_table('CONFESSIONAL').where('active', 'EQ', true);
-    // export const begin_trial        = use_table('CONFESSIONAL').amend;
+        export const get    = async (uid: string) => fetch<Omit<S, 'PK'>>(N, { id: uid });
+    }
 }
