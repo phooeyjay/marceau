@@ -29,9 +29,6 @@ export const rng        = ((sz?: number) => Array.from(webcrypto.getRandomValues
 /** Function-callable `throw`. */
 export const throwexc   = (ex: string | Error) => { throw ex instanceof Error ? ex : new Error(ex) };
 
-/** Less-breaking version of `ChatInputCommandInteraction.deferReply` */
-export const defer      = async (i: ChatInputCommandInteraction) => await i.reply({ ephemeral: true, fetchReply: true, content: `${inlineCode('Please wait...')} ⏳` });
-
 /** Get a known variable from the dotenv object. If `alt` is `false` instead of a string, the method will throw an error due to undefined environment variable. */
 export const getenv     = (variable: string, alt: string | false = '') => process.env[variable] || (alt === false ? throwexc(`${variable} missing in dotenv`) : alt);
 //#endregion
