@@ -35,24 +35,22 @@ export const getenv     = (variable: string, alt: string | false = '') => proces
 
 export module LOG {
     const WEBHOOK = new WebhookClient({ url: `https://discord.com/api/webhooks/${getenv('APP_LOGGER_URL')}` });
-    export type RESULT_BODY = [status: 'complete' | 'ongoing' | 'error', response: Message | null, error: Error | null];
+    export type SLASH_COMMAND_RESULT = [status: 'complete' | 'ongoing', response: Message | undefined] | [status: 'error', response: Message | undefined, error?: Error];
 
     /** Performs a `console.log`. */
-    export const cmdl = (...data: unknown[]) => console.log(datetime(), '\u00A0\u00A0', ...data.map(stringify));
+    export const to_cmdl        = (...data: unknown[]) => console.log(datetime(), '\u00A0\u00A0', ...data.map(stringify));
 
     /** Post a message to the logger channel. */
-    export const text = (a: unknown) => {
+    export const to_channel     = (a: unknown) => {
         (async (str, now) => {
             try {
                 await WEBHOOK.send({ content: `${inlineCode(now)} \u00A0\u00A0 ${str}` });
-            } catch (ex) { cmdl(ex, '\n--------------------\n', str); }
+            } catch (ex) { to_cmdl(ex, '\n--------------------\n', str); }
         })(stringify(a), datetime());
     };
 
     /** Post `ChatInputCommandInteraction` information to the logger channel.  */
-    export const interaction = (i: ChatInputCommandInteraction, d: RESULT_BODY) => {
-        const [status, response, error] = d;
-        const { user, commandName, channelId } = i;
+    export const to_channel_sc  = ({ user, commandName, channelId }: ChatInputCommandInteraction, [status, response, error]: SLASH_COMMAND_RESULT) => {
         (async (failed, now) => {
             try {
                 const description = [
@@ -67,8 +65,8 @@ export module LOG {
                     , failed ? codeBlock(stringify(error)) : null
                 ].filter((bit): bit is string => bit !== null).join(' ').trim();
                 await WEBHOOK.send({ content: description });
-            } catch (ex) { cmdl(ex, failed ? `\n--------------------\n${stringify(error)}` : null); }
-        })(error !== null, datetime());
+            } catch (ex) { to_cmdl(ex, failed ? `\n--------------------\n${stringify(error)}` : ''); }
+        })(error !== undefined, datetime());
     }
 }
 

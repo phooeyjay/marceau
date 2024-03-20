@@ -36,14 +36,14 @@ module HEX {
         .addUserOption(o => o.setName('who').setDescription('The target of the curse.').setRequired(true))
         .addStringOption(o => o.setName('why').setDescription('A reason for this affliction.'));
 
-        export const exec   = async (i: ChatInputCommandInteraction): Promise<LOG.RESULT_BODY> => {
+        export const exec   = async (i: ChatInputCommandInteraction): Promise<LOG.SLASH_COMMAND_RESULT> => {
             const guild = i.guild || throwexc('Null guild.')
             , whomst = i.options.getMember('who') as GuildMember
             , reason = i.options.getString('why');
-            if (whomst.user.bot) return ['complete', await reply(i, 'Cursing a bot is not allowed.'), null];
+            if (whomst.user.bot) return ['complete', await reply(i, 'Cursing a bot is not allowed.')];
 
             const state = sequencing(whomst, guild.roles.cache.filter((_, k) => HEX_SEQUENCE.includes(k)));
-            if (!state[2]) return ['complete', await reply(i, `${whomst} cannot be marked any further.`), null];
+            if (!state[2]) return ['complete', await reply(i, `${whomst} cannot be marked any further.`)];
 
             const embed = new EmbedBuilder()
             .setColor(0xc0c0c0)
@@ -89,13 +89,13 @@ module HEX {
                     await Promise.all([rc.message.reactions.removeAll(), rc.message.edit({ content: roleMention(HEX_AVENGER), embeds: [modded_embed] })]);
                 }
                 catch (iex) {
-                    LOG.interaction(i, ['error', rc.message, null]);
+                    LOG.to_channel_sc(i, ['error', rc.message, iex]);
                     await rc.message.delete();
                 }
             });
 
             await i.deleteReply();
-            return ['complete', m, null];
+            return ['complete', m];
         }
     }
 
@@ -111,11 +111,11 @@ module HEX {
 
         export const data   = new SlashCommandBuilder().setName('pray').setDescription('Fight against the curse of the « mark ».');
 
-        export const exec   = async (i: ChatInputCommandInteraction): Promise<LOG.RESULT_BODY> => {
+        export const exec   = async (i: ChatInputCommandInteraction): Promise<LOG.SLASH_COMMAND_RESULT> => {
             const guild = i.guild || throwexc('Null guild.'), member = i.member as GuildMember;
 
             const cm = member.roles.cache.find(r => [HEX_AVENGER, ...HEX_SEQUENCE].includes(r.id));
-            if (!cm) return ['error', await reply(i, 'Action halted; missing role.', true), null];
+            if (!cm) return ['error', await reply(i, 'Action halted; missing role.', true)];
 
             const m = await reply(i);
             setTimeout(async () => {
@@ -124,8 +124,8 @@ module HEX {
                     , d6 = request_d6(amped ? 'avenger' : indirect_hex(cm.id) ? 'unlucky' : 'normal');
 
                     const rolls = rng(5).map(v => d6.find(f => f[1] >= v * MAX_π)![0] || 4);
-                    if ([HEX_AVENGER, HEX_SEQUENCE[3]].includes(cm.id)) { // splice to post the latter 4 rolls elsewhere.
-                        LOG.text(`${inlineCode(cm.name.toUpperCase() + ' | ' + member.displayName + ' | ' + rolls.splice(1))}`);
+                    if (cm.id === HEX_AVENGER || cm.id === HEX_SEQUENCE[3]) { // splice to post the latter 4 rolls elsewhere.
+                        LOG.to_channel(`${inlineCode(cm.name.toUpperCase() + ' | ' + member.displayName + ' | ' + rolls.splice(1))}`);
                     }
                     
                     const text = inlineCode(`❰ ${rolls.map(r => r <= 0 ? LOSE_SYMBOL : r).join(', ')} ❱`)
@@ -136,11 +136,11 @@ module HEX {
                     .setFooter({ text: cm.name.toUpperCase() })
                     .setDescription([text, sum].filter(t => t).join(' ▸ '));
                     m.editable && await m.edit({ content: '', embeds: [embed] }) || await m.channel.send({ embeds: [embed] });
-                    LOG.interaction(i, ['complete', m, null]);
+                    LOG.to_channel_sc(i, ['complete', m]);
                 }
-                catch (iex) { LOG.interaction(i, ['error', m, iex]); }
+                catch (iex) { LOG.to_channel_sc(i, ['error', m, iex]); }
             }, 3_000);
-            return ['ongoing', null, null];
+            return ['ongoing', undefined];
         }
     }
 }
@@ -153,19 +153,19 @@ module MOD {
         .addUserOption(o    => o.setName('user').setDescription('The user.').setRequired(true))
         .addNumberOption(o  => o.setName('hours').setDescription('The silence period, with decimal precision.').setRequired(true));
 
-        export const exec   = async (i: ChatInputCommandInteraction): Promise<LOG.RESULT_BODY> => {
+        export const exec   = async (i: ChatInputCommandInteraction): Promise<LOG.SLASH_COMMAND_RESULT> => {
             const gm = i.options.getMember('user') as GuildMember;
             const hours = i.options.getNumber('hours', true), unmute = hours <= 0;
 
             await gm.timeout(unmute ? null : hours * 3_600_600);
-            return ['complete', await reply(i, [`${gm}`, '▸', unmute ? 'Unmuted.' : `Muted for ${bold(hours + ' hours.')}`].join(' ')), null];
+            return ['complete', await reply(i, [`${gm}`, '▸', unmute ? 'Unmuted.' : `Muted for ${bold(hours + ' hours.')}`].join(' '))];
         };
     }
 }
 
 //#region Export declarations.
 export const DATASET    = [HEX.MARK.data, HEX.PRAY.data, MOD.MUTE.data].map(d => d.toJSON());
-export const EXECUTE    = (i: ChatInputCommandInteraction): Promise<LOG.RESULT_BODY> => {
+export const EXECUTE    = (i: ChatInputCommandInteraction): Promise<LOG.SLASH_COMMAND_RESULT> => {
     switch (i.commandName) {
         case 'mark':    return HEX.MARK.exec(i);
         case 'pray':    return HEX.PRAY.exec(i);
