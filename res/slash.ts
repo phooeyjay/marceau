@@ -75,7 +75,7 @@ module HEX {
                         bits.push(`By ${unvoted ? 'default' : 'majority'}, ${whomst} is now ${state[1]!}.`);
 
                         //#region If the curse mark can cause collateral, do so.
-                        if (indirect_hex(state[1]!.id) && rng() >= 0.625) {
+                        if (indirect_hex(state[1]!.id) && rng() >= 0.75) {
                             const hex_cap = HEX_SEQUENCE.slice(0, HEX_SEQUENCE.indexOf(state[1]!.id)) // perform end-index exclusion.
                             , collt = grouper.members.filter(m => m.id !== whomst.id && m.roles.cache.hasAny(...hex_cap)).random()!;
 
@@ -121,20 +121,20 @@ module HEX {
             setTimeout(async () => {
                 try {
                     const amped = cm.id === HEX_SEQUENCE[3] || cm.id === HEX_AVENGER && (guild.roles.cache.get(HEX_SEQUENCE[2])?.members.size || 0) > 0
-                    , d6 = request_d6(amped ? 'avenger' : indirect_hex(cm.id) ? 'unlucky' : 'normal');
+                    , d6        = request_d6(amped ? 'avenger' : indirect_hex(cm.id) ? 'unlucky' : 'normal');
 
                     const rolls = rng(5).map(v => d6.find(f => f[1] >= v * MAX_π)![0] || 4);
                     if (cm.id === HEX_AVENGER || cm.id === HEX_SEQUENCE[3]) { // splice to post the latter 4 rolls elsewhere.
                         LOG.to_channel(`${inlineCode(cm.name.toUpperCase() + ' | ' + member.displayName + ' | ' + rolls.splice(1))}`);
                     }
                     
-                    const text = inlineCode(`❰ ${rolls.map(r => r <= 0 ? LOSE_SYMBOL : r).join(', ')} ❱`)
-                    , sum = rolls.length > 1 && !text.includes(LOSE_SYMBOL) ? inlineCode(`❰ ${rolls.reduce((a, b) => a + b, 0)} ❱`) : null;
+                    const text  = inlineCode(`〖 ${rolls.map(r => r <= 0 ? LOSE_SYMBOL : r).join(', ')} 〗`)
+                    , sum       = rolls.length > 1 && !text.includes(LOSE_SYMBOL) ? inlineCode(`〖 ${rolls.reduce((a, b) => a + b, 0)} 〗`) : '';
 
                     const embed = new EmbedBuilder()
                     .setColor(cm.color).setTimestamp()
                     .setFooter({ text: cm.name.toUpperCase() })
-                    .setDescription([text, sum].filter(t => t).join(' ▸ '));
+                    .setDescription([text, sum].filter(t => t.length > 0).join(' ▸ '));
                     m.editable && await m.edit({ content: '', embeds: [embed] }) || await m.channel.send({ embeds: [embed] });
                     LOG.to_channel_sc(i, ['complete', m]);
                 }
