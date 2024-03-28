@@ -43,7 +43,7 @@ module HEX {
             if (whomst.user.bot) return ['complete', await reply(i, 'Cursing a bot is not allowed.')];
 
             const state = sequencing(whomst, guild.roles.cache.filter((_, k) => HEX_SEQUENCE.includes(k)));
-            if (!state[2]) return ['complete', await reply(i, `${whomst} cannot be marked any further.`)];
+            if (state[2]) return ['complete', await reply(i, `${whomst} cannot be marked any further.`)];
 
             const embed = new EmbedBuilder()
             .setColor(0xc0c0c0)
@@ -86,7 +86,7 @@ module HEX {
                     } else bits.push(`${whomst} survives.`);
 
                     const modded_embed = embed.setDescription(bits.join(' ').trim() + '\n').setColor(state[1]!.color)
-                    await Promise.all([rc.message.reactions.removeAll(), rc.message.edit({ content: roleMention(HEX_AVENGER), embeds: [modded_embed] })]);
+                    await Promise.all([rc.message.reactions.removeAll(), rc.message.edit({ content: roleMention(HEX_MURDIST), embeds: [modded_embed] })]);
                 }
                 catch (iex) {
                     LOG.to_channel_sc(i, ['error', rc.message, iex]);
@@ -117,7 +117,7 @@ module HEX {
             const cm = member.roles.cache.find(r => [HEX_AVENGER, ...HEX_SEQUENCE].includes(r.id));
             if (!cm) return ['error', await reply(i, 'Action halted; missing role.', true)];
 
-            const m = await reply(i);
+            await i.deferReply();
             setTimeout(async () => {
                 try {
                     const amped = cm.id === HEX_SEQUENCE[3] || cm.id === HEX_AVENGER && (guild.roles.cache.get(HEX_SEQUENCE[2])?.members.size || 0) > 0
@@ -125,20 +125,20 @@ module HEX {
 
                     const rolls = rng(5).map(v => d6.find(f => f[1] >= v * MAX_π)![0] || 4);
                     if (cm.id === HEX_AVENGER || cm.id === HEX_SEQUENCE[3]) { // splice to post the latter 4 rolls elsewhere.
-                        LOG.to_channel(`${inlineCode(cm.name.toUpperCase() + ' | ' + member.displayName + ' | ' + rolls.splice(1))}`);
+                        LOG.to_channel(`${inlineCode(cm.name.toUpperCase() + ' | ' + member.displayName + ' | ' + rolls.splice(1).join(', '))}`);
                     }
                     
                     const text  = inlineCode(`〖 ${rolls.map(r => r <= 0 ? LOSE_SYMBOL : r).join(', ')} 〗`)
                     , sum       = rolls.length > 1 && !text.includes(LOSE_SYMBOL) ? inlineCode(`〖 ${rolls.reduce((a, b) => a + b, 0)} 〗`) : '';
 
                     const embed = new EmbedBuilder()
-                    .setColor(cm.color).setTimestamp()
+                    .setColor(cm.color)
                     .setFooter({ text: cm.name.toUpperCase() })
                     .setDescription([text, sum].filter(t => t.length > 0).join(' ▸ '));
-                    m.editable && await m.edit({ content: '', embeds: [embed] }) || await m.channel.send({ embeds: [embed] });
-                    LOG.to_channel_sc(i, ['complete', m]);
+
+                    LOG.to_channel_sc(i, ['complete', await i.editReply({ embeds: [embed] })]);
                 }
-                catch (iex) { LOG.to_channel_sc(i, ['error', m, iex]); }
+                catch (iex) { LOG.to_channel_sc(i, ['error', undefined, iex]); }
             }, 3_000);
             return ['ongoing', undefined];
         }
