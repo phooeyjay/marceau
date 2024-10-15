@@ -10,13 +10,7 @@
     "start": "npx tsx --require dotenv/config app.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.425.0",
-    "@aws-sdk/lib-dynamodb": "^3.425.0",
-    "cron": "^3.1.6",
     "discord.js": "^14.13.0",
     "dotenv": "^16.3.1"
-  },
-  "devDependencies": {
-    "tsx": "^3.13.0"
   }
 }

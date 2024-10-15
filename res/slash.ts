@@ -7,16 +7,6 @@ const reply = (i: ChatInputCommandInteraction, text: string = `${inlineCode('...
 /** Represents the application command group for events related to the _curse-mark_. */
 module HEX {
     /** Defined 2-min timeframe. */ const PERIOD_MS = 120_000, CHOICES: [yes: string, no: string] = ['💀', '😇'];
-
-    //#region Prominent module roles.
-    const HEX_SEQUENCE: [death: string, scarlet: string, kismet: string, shade: string] = [getenv('HEX_DEATH'), getenv('HEX_SCARL'), getenv('HEX_KISMT'), getenv('HEX_SHADE')]
-    , HEX_GROUPER = getenv('HEX_GROUPER')
-    , HEX_MURDIST = getenv('HEX_MURDIST')
-    , HEX_AVENGER = getenv('HEX_AVENGER');
-    //#endregion
-
-    const indirect_hex  = (h: string) => h === HEX_SEQUENCE[1] || h === HEX_SEQUENCE[2];
-
     export module MARK {
         const sequencing    = ({ roles }: GuildMember, pool: Collection<string, Role>): [now: Role | null, next: Role | null, last: boolean] => {
             const a = roles.cache.find(r => HEX_SEQUENCE.includes(r.id));
@@ -97,69 +87,6 @@ module HEX {
             await i.deleteReply();
             return ['complete', m];
         }
-    }
-
-    export module PRAY {
-        /** A defined maximum probability. */ const MAX_π = 0.990, LOSE_SYMBOL = '⚰️';
-        const request_d6    = (type: 'normal' | 'avenger' | 'unlucky'): [face: number, bound_π: number][] => {
-            switch (type) {
-                default:        return [[1, 0.165], [2, 0.330], [3, 0.495], [4, 0.660], [5, 0.825], [6, MAX_π]];
-                case 'avenger': return [[1, 0.221], [2, 0.357], [3, 0.494], [4, 0.631], [5, 0.768], [6, MAX_π]];
-                case 'unlucky': return [[-9_000, 0.114], [1, 0.335], [2, 0.556], [3, 0.776], [5, 0.930], [6, MAX_π]];
-            }
-        };
-
-        export const data   = new SlashCommandBuilder().setName('pray').setDescription('Fight against the curse of the « mark ».');
-
-        export const exec   = async (i: ChatInputCommandInteraction): Promise<LOG.SLASH_COMMAND_RESULT> => {
-            const guild = i.guild || throwexc('Null guild.'), member = i.member as GuildMember;
-
-            const cm = member.roles.cache.find(r => [HEX_AVENGER, ...HEX_SEQUENCE].includes(r.id));
-            if (!cm) return ['error', await reply(i, 'Action halted; missing role.', true)];
-
-            await i.deferReply();
-            setTimeout(async () => {
-                try {
-                    const amped = cm.id === HEX_SEQUENCE[3] || cm.id === HEX_AVENGER && (guild.roles.cache.get(HEX_SEQUENCE[2])?.members.size || 0) > 0
-                    , d6        = request_d6(amped ? 'avenger' : indirect_hex(cm.id) ? 'unlucky' : 'normal');
-
-                    const rolls = rng(5).map(v => d6.find(f => f[1] >= v * MAX_π)![0] || 4);
-                    if (cm.id === HEX_AVENGER || cm.id === HEX_SEQUENCE[3]) { // splice to post the latter 4 rolls elsewhere.
-                        LOG.to_channel(`${inlineCode(cm.name.toUpperCase() + ' | ' + member.displayName + ' | ' + rolls.splice(1).join(', '))}`);
-                    }
-                    
-                    const text  = inlineCode(`〖 ${rolls.map(r => r <= 0 ? LOSE_SYMBOL : r).join(', ')} 〗`)
-                    , sum       = rolls.length > 1 && !text.includes(LOSE_SYMBOL) ? inlineCode(`〖 ${rolls.reduce((a, b) => a + b, 0)} 〗`) : '';
-
-                    const embed = new EmbedBuilder()
-                    .setColor(cm.color)
-                    .setFooter({ text: cm.name.toUpperCase() })
-                    .setDescription([text, sum].filter(t => t.length > 0).join(' ▸ '));
-
-                    LOG.to_channel_sc(i, ['complete', await i.editReply({ embeds: [embed] })]);
-                }
-                catch (iex) { LOG.to_channel_sc(i, ['error', undefined, iex]); }
-            }, 3_000);
-            return ['ongoing', undefined];
-        }
-    }
-}
-
-/** Represents the application command group for moderation actions. */
-module MOD {
-    export module MUTE {
-        export const data   = new SlashCommandBuilder().setName('mute')
-        .setDescription('Mute a user for a custom set period.')
-        .addUserOption(o    => o.setName('user').setDescription('The user.').setRequired(true))
-        .addNumberOption(o  => o.setName('hours').setDescription('The silence period, with decimal precision.').setRequired(true));
-
-        export const exec   = async (i: ChatInputCommandInteraction): Promise<LOG.SLASH_COMMAND_RESULT> => {
-            const gm = i.options.getMember('user') as GuildMember;
-            const hours = i.options.getNumber('hours', true), unmute = hours <= 0;
-
-            await gm.timeout(unmute ? null : hours * 3_600_600);
-            return ['complete', await reply(i, [`${gm}`, '▸', unmute ? 'Unmuted.' : `Muted for ${bold(hours + ' hours.')}`].join(' '))];
-        };
     }
 }
 
