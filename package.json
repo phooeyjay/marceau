@@ -5,10 +5,8 @@
   "author": "phooeyjay",
   "type": "module",
   "license": "ISC",
-  "main": "index.ts",
-  "scripts": {
-    "start": "npx tsx --require dotenv/config app.ts"
-  },
+  "main": "app.js",
+  "scripts": {},
   "dependencies": {
     "discord.js": "^14.13.0",
     "dotenv": "^16.3.1"
